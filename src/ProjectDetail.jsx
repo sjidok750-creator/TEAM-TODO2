@@ -319,7 +319,7 @@ export default function ProjectDetail({ project, onBack }) {
                   </span>
                 )}
 
-                {/* Edit save / pencil */}
+                {/* Edit / Delete — hover 시에만 공간 차지 */}
                 {isEditing ? (
                   <button
                     onClick={() => saveTodoEdit(todo)}
@@ -331,28 +331,26 @@ export default function ProjectDetail({ project, onBack }) {
                     </svg>
                   </button>
                 ) : (
-                  <button
-                    onClick={() => startEditTodo(todo)}
-                    className="text-gray-300 hover:text-indigo-400 transition opacity-0 group-hover:opacity-100 shrink-0 active:opacity-100"
-                    title="수정"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
-                    </svg>
-                  </button>
-                )}
-
-                {/* Delete */}
-                {!isEditing && (
-                  <button
-                    onClick={() => deleteTodo(todo.id)}
-                    className="text-gray-300 hover:text-red-400 transition opacity-0 group-hover:opacity-100 shrink-0 active:opacity-100"
-                    title="삭제"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <div className="hidden group-hover:flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => startEditTodo(todo)}
+                      className="text-gray-300 hover:text-indigo-400 transition"
+                      title="수정"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => deleteTodo(todo.id)}
+                      className="text-gray-300 hover:text-red-400 transition"
+                      title="삭제"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 )}
               </div>
             )
