@@ -116,8 +116,8 @@ export default function ProjectDetail({ project, onBack }) {
             </svg>
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-gray-400">용역명</p>
-            <h1 className="text-sm font-bold text-gray-800 leading-snug break-words">
+            <span className="font-mono text-base font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2.5 py-1">todo list</span>
+            <h1 className="text-sm font-bold text-gray-800 leading-snug break-words mt-0.5">
               {project.name}
             </h1>
           </div>
@@ -280,7 +280,7 @@ export default function ProjectDetail({ project, onBack }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start gap-1.5 flex-wrap">
                     {todo.author && (
-                      <span className="font-mono text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-300 rounded px-1.5 py-0.5 shrink-0">
+                      <span className="font-mono text-xs font-semibold text-gray-400 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 shrink-0">
                         {todo.author}
                       </span>
                     )}

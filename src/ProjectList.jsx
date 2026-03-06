@@ -67,8 +67,7 @@ export default function ProjectList({ onSelectProject }) {
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
-          <span className="text-xl">📋</span>
-          <h1 className="text-lg font-bold text-gray-800">팀 투두</h1>
+          <span className="font-mono text-base font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2.5 py-1">todo list</span>
         </div>
       </header>
 
@@ -141,7 +140,7 @@ export default function ProjectList({ onSelectProject }) {
                           return (
                             <div key={todo.id} className="flex items-start gap-1.5 ml-1 flex-wrap">
                               {todo.author && (
-                                <span className="font-mono text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-300 rounded px-1.5 py-0.5 shrink-0">
+                                <span className="font-mono text-xs font-semibold text-gray-400 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 shrink-0">
                                   {todo.author}
                                 </span>
                               )}
