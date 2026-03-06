@@ -314,7 +314,7 @@ export default function ProjectDetail({ project, onBack }) {
 
                 {/* Author — far right */}
                 {todo.author && !isEditing && (
-                  <span className="shrink-0 text-sm text-gray-400" style={{fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'}}>
+                  <span className="shrink-0 text-xs font-semibold text-red-500 bg-red-50 border border-red-300 rounded-full px-2 py-0.5">
                     {todo.author}
                   </span>
                 )}
