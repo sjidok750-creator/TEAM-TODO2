@@ -41,9 +41,17 @@ function Avatar({ name }) {
   )
 }
 
+const WORK_TYPES = [
+  { key: '외업', label: '외업', color: 'bg-blue-100 text-blue-700' },
+  { key: '내업', label: '내업', color: 'bg-green-100 text-green-700' },
+  { key: '중요', label: '중요', color: 'bg-red-100 text-red-700' },
+  { key: '기타', label: '기타', color: 'bg-gray-100 text-gray-600' },
+]
+
 export default function TodoApp({ nickname, onChangeNickname }) {
   const [todos, setTodos] = useState([])
   const [input, setInput] = useState('')
+  const [workType, setWorkType] = useState('기타')
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all') // all | active | done
   const inputRef = useRef(null)
@@ -66,6 +74,7 @@ export default function TodoApp({ nickname, onChangeNickname }) {
       text,
       done: false,
       author: nickname,
+      workType,
       createdAt: serverTimestamp(),
     })
     inputRef.current?.focus()
@@ -133,24 +142,41 @@ export default function TodoApp({ nickname, onChangeNickname }) {
         )}
 
         {/* Input */}
-        <div className="bg-white rounded-xl shadow-sm p-4 flex gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="새 할 일을 입력하세요..."
-            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
-            maxLength={200}
-          />
-          <button
-            onClick={addTodo}
-            disabled={!input.trim()}
-            className="bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-semibold transition active:scale-95 shrink-0"
-          >
-            추가
-          </button>
+        <div className="bg-white rounded-xl shadow-sm p-4 space-y-2">
+          <div className="flex gap-1">
+            {WORK_TYPES.map(({ key, label, color }) => (
+              <button
+                key={key}
+                onClick={() => setWorkType(key)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border-2 transition ${
+                  workType === key
+                    ? `${color} border-current`
+                    : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                {key === '중요' && '★ '}{label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="새 할 일을 입력하세요..."
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+              maxLength={200}
+            />
+            <button
+              onClick={addTodo}
+              disabled={!input.trim()}
+              className="bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-semibold transition active:scale-95 shrink-0"
+            >
+              추가
+            </button>
+          </div>
         </div>
 
         {/* Filter tabs */}
@@ -230,9 +256,20 @@ export default function TodoApp({ nickname, onChangeNickname }) {
                     todo.done ? 'line-through text-gray-400' : 'text-gray-800'
                   }`}
                 >
+                  {todo.workType === '중요' && (
+                    <span className="text-amber-400 font-bold mr-1">★</span>
+                  )}
                   {todo.text}
                 </p>
-                <div className="flex items-center gap-1.5 mt-1">
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {todo.workType && (() => {
+                    const wt = WORK_TYPES.find((w) => w.key === todo.workType)
+                    return wt ? (
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${wt.color}`}>
+                        {todo.workType}
+                      </span>
+                    ) : null
+                  })()}
                   <Avatar name={todo.author || '?'} />
                   <span className="text-xs text-gray-400">{todo.author}</span>
                   {todo.createdAt && (
