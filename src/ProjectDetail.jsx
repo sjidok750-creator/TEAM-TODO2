@@ -9,7 +9,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from './firebase'
-
+import { useToast } from './Toast'
 
 
 const CATEGORY_CONFIG = {
@@ -38,6 +38,8 @@ export default function ProjectDetail({ project, onBack }) {
   const [editingText, setEditingText] = useState('')
   const inputRef = useRef(null)
   const editTodoRef = useRef(null)
+  const prevTodoIdsRef = useRef(null)
+  const { addToast, ToastContainer } = useToast()
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'todos'), (snap) => {
@@ -49,6 +51,18 @@ export default function ProjectDetail({ project, onBack }) {
           const bTime = b.createdAt?.toMillis?.() ?? 0
           return aTime - bTime
         })
+      // 알림: 초기 로드 이후 타인이 추가한 항목 감지
+      if (prevTodoIdsRef.current !== null) {
+        const prevIds = prevTodoIdsRef.current
+        const newItems = projectTodos.filter((t) => !prevIds.has(t.id))
+        newItems.forEach((t) => {
+          if (t.author !== (localStorage.getItem('team-todo-author') || '')) {
+            const cat = t.category || '기타'
+            addToast(`${t.author}님이 (${cat}) ${t.text}`, { icon: '🔔' })
+          }
+        })
+      }
+      prevTodoIdsRef.current = new Set(projectTodos.map((t) => t.id))
       setTodos(projectTodos)
       setLoading(false)
     })
@@ -104,6 +118,7 @@ export default function ProjectDetail({ project, onBack }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ToastContainer />
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="flex items-center gap-2 px-3 py-2.5">
