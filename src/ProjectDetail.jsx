@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { AUTHORS, getAuthorClass } from './authorConfig'
 import {
   collection,
   addDoc,
@@ -187,15 +188,23 @@ export default function ProjectDetail({ project, onBack }) {
               )
             })}
           </div>
-          {/* Author */}
-          <input
-            type="text"
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
-            placeholder="작성자"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent transition"
-            maxLength={20}
-          />
+          {/* Author 선택 */}
+          <div className="flex flex-wrap gap-1.5">
+            {AUTHORS.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setAuthor(author === name ? '' : name)}
+                className={`text-xs font-semibold rounded-full px-2.5 py-1 border transition active:scale-95 ${
+                  author === name
+                    ? getAuthorClass(name)
+                    : 'text-gray-400 bg-white border-gray-200 hover:border-gray-400'
+                }`}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
           {/* Content + Submit */}
           <div className="flex gap-2">
             <input
@@ -314,7 +323,7 @@ export default function ProjectDetail({ project, onBack }) {
 
                 {/* Author — far right */}
                 {todo.author && !isEditing && (
-                  <span className="shrink-0 text-xs font-semibold text-red-500 bg-red-50 border border-red-300 rounded-full px-2 py-0.5">
+                  <span className={`shrink-0 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
                     {todo.author}
                   </span>
                 )}

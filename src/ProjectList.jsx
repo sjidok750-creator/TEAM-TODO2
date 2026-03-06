@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { getAuthorClass } from './authorConfig'
 import {
   collection,
   addDoc,
@@ -238,7 +239,7 @@ export default function ProjectList({ onSelectProject }) {
                             {todo.text}
                           </p>
                           {todo.author && (
-                            <span className="shrink-0 ml-1 text-xs font-semibold text-red-500 bg-red-50 border border-red-300 rounded-full px-2 py-0.5">
+                            <span className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
                               {todo.author}
                             </span>
                           )}
