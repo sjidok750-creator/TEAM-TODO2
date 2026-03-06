@@ -8,6 +8,15 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#D4784A" />
+    <script>
+      // GitHub Pages SPA: 404.html에서 넘어온 경로 복원
+      (function () {
+        var p = window.location.search.slice(1).match(/p=([^&]+)/);
+        if (p) {
+          window.history.replaceState(null, null, '/' + decodeURIComponent(p[1]));
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
