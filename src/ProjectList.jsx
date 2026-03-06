@@ -152,117 +152,116 @@ export default function ProjectList({ onSelectProject }) {
                   onClick={() => !isEditing && onSelectProject(project)}
                   className={`w-full bg-white rounded-lg border border-gray-100 px-4 py-3 text-left transition ${isEditing ? '' : 'hover:border-indigo-200 cursor-pointer active:bg-gray-50'}`}
                 >
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                      {/* 용역명 */}
-                      {isEditing ? (
-                        <input
-                          ref={editNameRef}
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveProjectName(e, project)
-                            if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-full px-2 py-1 border border-indigo-400 rounded text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                          maxLength={150}
-                        />
-                      ) : (
-                        <p className="text-sm font-bold text-gray-800 leading-snug break-words">
-                          용역명 : {project.name}
-                        </p>
-                      )}
+                  {/* 용역명 */}
+                  {isEditing ? (
+                    <input
+                      ref={editNameRef}
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveProjectName(e, project)
+                        if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full px-2 py-1 border border-indigo-400 rounded text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      maxLength={150}
+                    />
+                  ) : (
+                    <p className="text-sm font-bold text-gray-800 leading-snug break-words">
+                      용역명 : {project.name}
+                    </p>
+                  )}
 
-                      {/* TODO 목록 */}
-                      <div className="mt-1.5 space-y-0.5">
-                        <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo list</span>
-                        {total === 0 && (
-                          <p className="text-xs text-gray-400 ml-1">할 일을 추가해보세요</p>
+                  {/* TODO 목록 */}
+                  <div className="mt-1.5 space-y-0.5">
+                    {/* todo list 라벨 + ··· 버튼 */}
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo list</span>
+                      <div className="relative">
+                        {isEditing ? (
+                          <button
+                            onClick={(e) => saveProjectName(e, project)}
+                            className="text-indigo-500 hover:text-indigo-700 transition p-1 rounded active:bg-indigo-50"
+                            title="저장"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setOpenMenuId(openMenuId === project.id ? null : project.id)}
+                            className="text-gray-400 hover:text-gray-600 transition px-1 py-0.5 rounded active:bg-gray-100 text-base leading-none font-bold tracking-tighter"
+                            title="메뉴"
+                          >
+                            ···
+                          </button>
                         )}
-                        {projectTodos.map((todo) => {
-                          const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
-                          return (
-                            <div key={todo.id} className="flex items-center gap-1 ml-1">
-                              <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
-                                ({todo.category || '기타'})
-                              </span>
-                              <p className={`flex-1 text-xs break-all leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                                {todo.text}
-                              </p>
-                              {todo.author && (
-                                <span className="text-xs text-gray-400 shrink-0 ml-1" style={{fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'}}>
-                                  {todo.author}
-                                </span>
-                              )}
-                            </div>
-                          )
-                        })}
+                        {openMenuId === project.id && (
+                          <div className="absolute left-0 top-7 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden min-w-[100px]">
+                            <button
+                              onClick={(e) => { startEditProject(e, project); setOpenMenuId(null) }}
+                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                            >
+                              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
+                              </svg>
+                              수정
+                            </button>
+                            <button
+                              onClick={(e) => { deleteProject(e, project); setOpenMenuId(null) }}
+                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 active:bg-red-100"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              삭제
+                            </button>
+                          </div>
+                        )}
                       </div>
-
-                      {/* 진행률 바 */}
-                      {total > 0 && (
-                        <div className="mt-2 space-y-1">
-                          <div className="flex items-center justify-between text-xs text-gray-400">
-                            <span>{done} / {total} 완료</span>
-                            <span>{pct}%</span>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-1.5">
-                            <div
-                              className="bg-indigo-500 h-1.5 rounded-full transition-all"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
                     </div>
 
-                    {/* Action menu */}
-                    <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
-                      {isEditing ? (
-                        <button
-                          onClick={(e) => saveProjectName(e, project)}
-                          className="text-indigo-500 hover:text-indigo-700 transition p-1.5 rounded active:bg-indigo-50"
-                          title="저장"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setOpenMenuId(openMenuId === project.id ? null : project.id)}
-                          className="text-gray-400 hover:text-gray-600 transition p-1.5 rounded active:bg-gray-100 text-lg leading-none font-bold tracking-tighter"
-                          title="메뉴"
-                        >
-                          ···
-                        </button>
-                      )}
-                      {openMenuId === project.id && (
-                        <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden min-w-[100px]">
-                          <button
-                            onClick={(e) => { startEditProject(e, project); setOpenMenuId(null) }}
-                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100"
-                          >
-                            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
-                            </svg>
-                            수정
-                          </button>
-                          <button
-                            onClick={(e) => { deleteProject(e, project); setOpenMenuId(null) }}
-                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 active:bg-red-100"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            삭제
-                          </button>
+                    {/* 투두 항목들 */}
+                    {total === 0 && (
+                      <p className="text-xs text-gray-400 ml-1">할 일을 추가해보세요</p>
+                    )}
+                    {projectTodos.map((todo) => {
+                      const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
+                      return (
+                        <div key={todo.id} className="flex items-center gap-1">
+                          <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
+                            ({todo.category || '기타'})
+                          </span>
+                          <p className={`flex-1 text-xs break-all leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                            {todo.text}
+                          </p>
+                          {todo.author && (
+                            <span className="text-xs text-gray-400 shrink-0 ml-1" style={{fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'}}>
+                              {todo.author}
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      )
+                    })}
                   </div>
+
+                  {/* 진행률 바 */}
+                  {total > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <span>{done} / {total} 완료</span>
+                        <span>{pct}%</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5">
+                        <div
+                          className="bg-indigo-500 h-1.5 rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}
