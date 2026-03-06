@@ -24,21 +24,7 @@ const CATEGORY_CONFIG = {
   },
 }
 
-function Avatar({ name }) {
-  const colors = [
-    'bg-red-400', 'bg-orange-400', 'bg-amber-400', 'bg-green-400',
-    'bg-teal-400', 'bg-cyan-400', 'bg-blue-400', 'bg-violet-400',
-    'bg-pink-400', 'bg-rose-400',
-  ]
-  const idx = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % colors.length
-  return (
-    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-xs font-bold shrink-0 ${colors[idx]}`}>
-      {name[0].toUpperCase()}
-    </span>
-  )
-}
-
-export default function ProjectList({ nickname, onChangeNickname, onSelectProject }) {
+export default function ProjectList({ onSelectProject }) {
   const [projects, setProjects] = useState([])
   const [todos, setTodos] = useState([])
   const [input, setInput] = useState('')
@@ -67,7 +53,6 @@ export default function ProjectList({ nickname, onChangeNickname, onSelectProjec
     await addDoc(collection(db, 'projects'), {
       name,
       createdAt: serverTimestamp(),
-      createdBy: nickname,
     })
   }
 
@@ -81,20 +66,9 @@ export default function ProjectList({ nickname, onChangeNickname, onSelectProjec
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">📋</span>
-            <h1 className="text-lg font-bold text-gray-800">팀 투두</h1>
-          </div>
-          <button
-            onClick={onChangeNickname}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-indigo-600 transition"
-            title="닉네임 변경"
-          >
-            <Avatar name={nickname} />
-            <span className="font-medium">{nickname}</span>
-            <span className="text-xs text-gray-400">변경</span>
-          </button>
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
+          <span className="text-xl">📋</span>
+          <h1 className="text-lg font-bold text-gray-800">팀 투두</h1>
         </div>
       </header>
 
@@ -165,7 +139,12 @@ export default function ProjectList({ nickname, onChangeNickname, onSelectProjec
                         {projectTodos.map((todo) => {
                           const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
                           return (
-                            <div key={todo.id} className="flex items-start gap-1.5 ml-1">
+                            <div key={todo.id} className="flex items-start gap-1.5 ml-1 flex-wrap">
+                              {todo.author && (
+                                <span className="font-mono text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-300 rounded px-1.5 py-0.5 shrink-0">
+                                  {todo.author}
+                                </span>
+                              )}
                               <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
                                 ({todo.category || '기타'})
                               </span>

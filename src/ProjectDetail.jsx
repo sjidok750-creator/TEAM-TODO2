@@ -42,9 +42,10 @@ function Avatar({ name }) {
   )
 }
 
-export default function ProjectDetail({ project, nickname, onBack }) {
+export default function ProjectDetail({ project, onBack }) {
   const [todos, setTodos] = useState([])
   const [input, setInput] = useState('')
+  const [author, setAuthor] = useState(() => localStorage.getItem('team-todo-author') || '')
   const [category, setCategory] = useState('외업')
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
@@ -71,12 +72,13 @@ export default function ProjectDetail({ project, nickname, onBack }) {
     const text = input.trim()
     if (!text) return
     setInput('')
+    localStorage.setItem('team-todo-author', author)
     await addDoc(collection(db, 'todos'), {
       projectId: project.id,
       text,
       done: false,
       category,
-      author: nickname,
+      author: author.trim() || '익명',
       createdAt: serverTimestamp(),
     })
     inputRef.current?.focus()
@@ -172,8 +174,16 @@ export default function ProjectDetail({ project, nickname, onBack }) {
               )
             })}
           </div>
-          {/* Text input */}
+          {/* Author + Text input */}
           <div className="flex gap-2">
+            <input
+              type="text"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              placeholder="작성자"
+              className="w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent transition font-mono shrink-0"
+              maxLength={20}
+            />
             <input
               ref={inputRef}
               type="text"
@@ -268,7 +278,12 @@ export default function ProjectDetail({ project, nickname, onBack }) {
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start gap-1.5">
+                  <div className="flex items-start gap-1.5 flex-wrap">
+                    {todo.author && (
+                      <span className="font-mono text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-300 rounded px-1.5 py-0.5 shrink-0">
+                        {todo.author}
+                      </span>
+                    )}
                     <span className={`text-xs font-bold shrink-0 mt-0.5 ${cfg.color}`}>
                       ({todo.category || '기타'})
                     </span>
@@ -279,10 +294,6 @@ export default function ProjectDetail({ project, nickname, onBack }) {
                     >
                       {todo.text}
                     </p>
-                  </div>
-                  <div className="flex items-center gap-1 mt-1.5">
-                    <Avatar name={todo.author || '?'} />
-                    <span className="text-xs text-gray-400">{todo.author}</span>
                   </div>
                 </div>
 
