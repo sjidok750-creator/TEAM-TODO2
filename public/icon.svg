@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="200" ry="200" fill="#FDF5EE"/>
+  <!-- Border -->
+  <rect x="24" y="24" width="976" height="976" rx="180" ry="180"
+        fill="none" stroke="#D4784A" stroke-width="28"/>
+
+  <!-- "todo" text -->
+  <text x="512" y="420"
+        font-family="'Helvetica Neue', Arial, sans-serif"
+        font-size="240"
+        font-weight="300"
+        fill="#C86A3A"
+        text-anchor="middle"
+        dominant-baseline="middle">todo</text>
+
+  <!-- Horizontal divider -->
+  <line x1="180" y1="520" x2="844" y2="520"
+        stroke="#D4784A" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- "list" text -->
+  <text x="512" y="650"
+        font-family="'Helvetica Neue', Arial, sans-serif"
+        font-size="200"
+        font-weight="300"
+        fill="#E8A87A"
+        text-anchor="middle"
+        dominant-baseline="middle">list</text>
+
+  <!-- Three dots -->
+  <circle cx="440" cy="770" r="18" fill="#D4784A"/>
+  <circle cx="512" cy="770" r="18" fill="#D4784A"/>
+  <circle cx="584" cy="770" r="18" fill="#D4784A"/>
+
+  <!-- Bullet list lines -->
+  <circle cx="370" cy="840" r="10" fill="#D4A070"/>
+  <line x1="400" y1="840" x2="680" y2="840"
+        stroke="#D4A070" stroke-width="10" stroke-linecap="round"/>
+
+  <circle cx="370" cy="890" r="10" fill="#D4A070"/>
+  <line x1="400" y1="890" x2="680" y2="890"
+        stroke="#D4A070" stroke-width="10" stroke-linecap="round"/>
+</svg>
