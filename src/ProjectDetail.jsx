@@ -283,13 +283,6 @@ export default function ProjectDetail({ project, onBack }) {
                   )}
                 </button>
 
-                {/* Author badge */}
-                {todo.author && !isEditing && (
-                  <span className="text-xs text-gray-400 shrink-0 font-mono">
-                    {todo.author}
-                  </span>
-                )}
-
                 {/* Category */}
                 {!isEditing && (
                   <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
@@ -317,6 +310,13 @@ export default function ProjectDetail({ project, onBack }) {
                   }`}>
                     {todo.text}
                   </p>
+                )}
+
+                {/* Author badge — far right */}
+                {todo.author && !isEditing && (
+                  <span className="shrink-0 bg-gray-800 text-white text-xs font-medium rounded-full px-2.5 py-1 border border-gray-700 leading-none">
+                    {todo.author}
+                  </span>
                 )}
 
                 {/* Edit save / pencil */}
