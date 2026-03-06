@@ -56,10 +56,16 @@ export default function ProjectList({ nickname, onChangeNickname, onSelectProjec
     })
   }
 
-  function getTodoStats(projectId) {
-    const projectTodos = todos.filter((t) => t.projectId === projectId)
-    const done = projectTodos.filter((t) => t.done).length
-    return { total: projectTodos.length, done }
+  const CATEGORY_COLOR = {
+    '외업': 'text-red-600',
+    '내업': 'text-blue-600',
+    '기타': 'text-green-600',
+  }
+
+  function getProjectTodos(projectId) {
+    return todos
+      .filter((t) => t.projectId === projectId)
+      .sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0))
   }
 
   return (
@@ -124,7 +130,9 @@ export default function ProjectList({ nickname, onChangeNickname, onSelectProjec
               </div>
             )}
             {projects.map((project) => {
-              const { total, done } = getTodoStats(project.id)
+              const projectTodos = getProjectTodos(project.id)
+              const total = projectTodos.length
+              const done = projectTodos.filter((t) => t.done).length
               const pct = total ? Math.round((done / total) * 100) : 0
               return (
                 <button
@@ -134,24 +142,48 @@ export default function ProjectList({ nickname, onChangeNickname, onSelectProjec
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
+                      {/* 용역명 */}
                       <p className="text-sm font-bold text-gray-800 leading-snug break-words">
                         용역명 : {project.name}
                       </p>
-                      <div className="mt-3 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <span className="font-medium">TODO</span>
-                          <span>{done} / {total} 완료 ({pct}%)</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5">
-                          <div
-                            className="bg-indigo-500 h-1.5 rounded-full transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
+
+                      {/* TODO 목록 */}
+                      <div className="mt-2 ml-2 space-y-1">
+                        <p className="text-xs font-semibold text-gray-500">TODO</p>
                         {total === 0 && (
-                          <p className="text-xs text-gray-400">할 일을 추가해보세요</p>
+                          <p className="text-xs text-gray-400 ml-2">할 일을 추가해보세요</p>
                         )}
+                        {projectTodos.map((todo) => (
+                          <div key={todo.id} className="flex items-start gap-1.5 ml-2">
+                            {/* 체크박스 모양 */}
+                            <span className={`mt-0.5 shrink-0 text-xs ${todo.done ? 'text-gray-300' : 'text-gray-400'}`}>
+                              {todo.done ? '☑' : '☐'}
+                            </span>
+                            <span className={`text-xs font-bold shrink-0 ${CATEGORY_COLOR[todo.category] || 'text-green-600'}`}>
+                              ({todo.category || '기타'})
+                            </span>
+                            <span className={`text-xs break-words leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                              {todo.text}
+                            </span>
+                          </div>
+                        ))}
                       </div>
+
+                      {/* 진행률 바 */}
+                      {total > 0 && (
+                        <div className="mt-3 space-y-1">
+                          <div className="flex items-center justify-between text-xs text-gray-400">
+                            <span>{done} / {total} 완료</span>
+                            <span>{pct}%</span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-1.5">
+                            <div
+                              className="bg-indigo-500 h-1.5 rounded-full transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <svg
                       className="w-5 h-5 text-gray-300 group-hover:text-indigo-400 transition shrink-0 mt-1"
