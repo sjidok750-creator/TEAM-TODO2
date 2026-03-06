@@ -121,7 +121,7 @@ export default function ProjectDetail({ project, onBack }) {
       <ToastContainer />
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="flex items-center gap-2 px-3 py-2.5">
+        <div className="max-w-2xl mx-auto flex items-center gap-2 px-4 py-2.5">
           <button
             onClick={onBack}
             className="text-gray-400 hover:text-gray-700 transition p-1.5 -ml-1.5 rounded-lg active:bg-gray-100"
@@ -138,7 +138,7 @@ export default function ProjectDetail({ project, onBack }) {
         </div>
       </header>
 
-      <main className="px-3 py-3 space-y-3">
+      <main className="max-w-2xl mx-auto px-4 py-3 space-y-3">
         {/* Progress */}
         {totalCount > 0 && (
           <div className="bg-white rounded-lg border border-gray-100 px-4 py-3">

@@ -98,12 +98,12 @@ export default function ProjectList({ onSelectProject }) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="px-3 py-2.5 flex items-center gap-2">
+        <div className="px-4 py-2.5 max-w-2xl mx-auto flex items-center gap-2">
           <span className="font-mono text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2 py-0.5">todo list</span>
         </div>
       </header>
 
-      <main className="px-3 py-4 space-y-4">
+      <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
         {/* Add project input */}
         <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 space-y-2">
           <p className="text-xs font-semibold text-gray-500">새 용역 추가</p>
