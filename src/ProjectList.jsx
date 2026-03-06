@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   collection,
   addDoc,
@@ -25,7 +25,15 @@ export default function ProjectList({ onSelectProject }) {
   const [loading, setLoading] = useState(true)
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [editingName, setEditingName] = useState('')
+  const [openMenuId, setOpenMenuId] = useState(null)
   const editNameRef = useRef(null)
+
+  const closeMenu = useCallback(() => setOpenMenuId(null), [])
+  useEffect(() => {
+    if (!openMenuId) return
+    document.addEventListener('click', closeMenu)
+    return () => document.removeEventListener('click', closeMenu)
+  }, [openMenuId, closeMenu])
 
   useEffect(() => {
     const q = query(collection(db, 'projects'), orderBy('createdAt', 'asc'))
@@ -210,12 +218,12 @@ export default function ProjectList({ onSelectProject }) {
                       )}
                     </div>
 
-                    {/* Action buttons */}
-                    <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {/* Action menu */}
+                    <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
                       {isEditing ? (
                         <button
                           onClick={(e) => saveProjectName(e, project)}
-                          className="text-indigo-500 hover:text-indigo-700 transition p-1 rounded active:bg-indigo-50"
+                          className="text-indigo-500 hover:text-indigo-700 transition p-1.5 rounded active:bg-indigo-50"
                           title="저장"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -224,24 +232,35 @@ export default function ProjectList({ onSelectProject }) {
                         </button>
                       ) : (
                         <button
-                          onClick={(e) => startEditProject(e, project)}
-                          className="text-gray-300 hover:text-indigo-500 transition p-1 rounded active:bg-gray-100"
-                          title="용역명 수정"
+                          onClick={() => setOpenMenuId(openMenuId === project.id ? null : project.id)}
+                          className="text-gray-400 hover:text-gray-600 transition p-1.5 rounded active:bg-gray-100 text-lg leading-none font-bold tracking-tighter"
+                          title="메뉴"
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
-                          </svg>
+                          ···
                         </button>
                       )}
-                      <button
-                        onClick={(e) => deleteProject(e, project)}
-                        className="text-gray-300 hover:text-red-500 transition p-1 rounded active:bg-gray-100"
-                        title="용역 삭제"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                      {openMenuId === project.id && (
+                        <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden min-w-[100px]">
+                          <button
+                            onClick={(e) => { startEditProject(e, project); setOpenMenuId(null) }}
+                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                          >
+                            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
+                            </svg>
+                            수정
+                          </button>
+                          <button
+                            onClick={(e) => { deleteProject(e, project); setOpenMenuId(null) }}
+                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 active:bg-red-100"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            삭제
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
