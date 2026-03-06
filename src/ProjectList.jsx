@@ -157,41 +157,21 @@ export default function ProjectList({ nickname, onChangeNickname, onSelectProjec
                       </p>
 
                       {/* TODO 목록 */}
-                      <div className="mt-2 space-y-1.5">
-                        <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">TODO</span>
+                      <div className="mt-2 space-y-1">
+                        <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo</span>
                         {total === 0 && (
                           <p className="text-xs text-gray-400 ml-1">할 일을 추가해보세요</p>
                         )}
                         {projectTodos.map((todo) => {
                           const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
                           return (
-                            <div
-                              key={todo.id}
-                              className={`bg-white rounded-xl shadow-sm px-4 py-3 flex items-start gap-3 border-l-4 ${cfg.borderClass} ${todo.done ? 'opacity-60' : ''}`}
-                            >
-                              {/* 체크 표시 */}
-                              <span className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                                todo.done ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300'
-                              }`}>
-                                {todo.done && (
-                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
+                            <div key={todo.id} className="flex items-start gap-1.5 ml-1">
+                              <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
+                                ({todo.category || '기타'})
                               </span>
-                              {/* 카테고리 + 텍스트 */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start gap-1.5">
-                                  <span className={`text-xs font-bold shrink-0 mt-0.5 ${cfg.color}`}>
-                                    ({todo.category || '기타'})
-                                  </span>
-                                  <p className={`text-sm break-words leading-snug ${
-                                    todo.done ? 'line-through text-gray-400' : 'text-gray-800'
-                                  }`}>
-                                    {todo.text}
-                                  </p>
-                                </div>
-                              </div>
+                              <p className={`text-xs break-words leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                                {todo.text}
+                              </p>
                             </div>
                           )
                         })}
