@@ -48,10 +48,7 @@ export default function ProjectDetail({ project, nickname, onBack }) {
   const [category, setCategory] = useState('외업')
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
-  const [editingId, setEditingId] = useState(null)
-  const [editText, setEditText] = useState('')
   const inputRef = useRef(null)
-  const editRef = useRef(null)
 
   // Load all todos and filter client-side (avoids composite index requirement)
   useEffect(() => {
@@ -91,26 +88,6 @@ export default function ProjectDetail({ project, nickname, onBack }) {
 
   async function deleteTodo(id) {
     await deleteDoc(doc(db, 'todos', id))
-  }
-
-  function startEdit(todo) {
-    setEditingId(todo.id)
-    setEditText(todo.text)
-    setTimeout(() => editRef.current?.focus(), 0)
-  }
-
-  async function saveEdit(todo) {
-    const text = editText.trim()
-    if (text && text !== todo.text) {
-      await updateDoc(doc(db, 'todos', todo.id), { text })
-    }
-    setEditingId(null)
-    setEditText('')
-  }
-
-  function cancelEdit() {
-    setEditingId(null)
-    setEditText('')
   }
 
   const filtered = todos.filter((t) => {
@@ -295,27 +272,13 @@ export default function ProjectDetail({ project, nickname, onBack }) {
                     <span className={`text-xs font-bold shrink-0 mt-0.5 ${cfg.color}`}>
                       ({todo.category || '기타'})
                     </span>
-                    {editingId === todo.id ? (
-                      <input
-                        ref={editRef}
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveEdit(todo)
-                          if (e.key === 'Escape') cancelEdit()
-                        }}
-                        onBlur={() => saveEdit(todo)}
-                        className="flex-1 text-sm px-2 py-0.5 border border-indigo-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
-                      />
-                    ) : (
-                      <p
-                        className={`text-sm break-words leading-snug ${
-                          todo.done ? 'line-through text-gray-400' : 'text-gray-800'
-                        }`}
-                      >
-                        {todo.text}
-                      </p>
-                    )}
+                    <p
+                      className={`text-sm break-words leading-snug ${
+                        todo.done ? 'line-through text-gray-400' : 'text-gray-800'
+                      }`}
+                    >
+                      {todo.text}
+                    </p>
                   </div>
                   <div className="flex items-center gap-1 mt-1.5">
                     <Avatar name={todo.author || '?'} />
@@ -323,29 +286,16 @@ export default function ProjectDetail({ project, nickname, onBack }) {
                   </div>
                 </div>
 
-                {/* Edit & Delete */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition shrink-0 mt-0.5">
-                  {editingId !== todo.id && (
-                    <button
-                      onClick={() => startEdit(todo)}
-                      className="text-gray-300 hover:text-indigo-400 transition"
-                      title="수정"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => deleteTodo(todo.id)}
-                    className="text-gray-300 hover:text-red-400 transition"
-                    title="삭제"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+                {/* Delete */}
+                <button
+                  onClick={() => deleteTodo(todo.id)}
+                  className="text-gray-300 hover:text-red-400 transition opacity-0 group-hover:opacity-100 shrink-0 mt-0.5"
+                  title="삭제"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             )
           })}

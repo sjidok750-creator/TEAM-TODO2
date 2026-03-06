@@ -158,7 +158,7 @@ export default function ProjectList({ nickname, onChangeNickname, onSelectProjec
 
                       {/* TODO 목록 */}
                       <div className="mt-2 space-y-1.5">
-                        <p className="text-xs font-semibold text-gray-500">TODO</p>
+                        <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">TODO</span>
                         {total === 0 && (
                           <p className="text-xs text-gray-400 ml-1">할 일을 추가해보세요</p>
                         )}
