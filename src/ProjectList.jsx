@@ -138,18 +138,18 @@ export default function ProjectList({ onSelectProject }) {
                         {projectTodos.map((todo) => {
                           const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
                           return (
-                            <div key={todo.id} className="flex items-start gap-1.5 ml-1 flex-wrap">
-                              {todo.author && (
-                                <span className="font-mono text-xs font-semibold text-gray-400 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 shrink-0">
-                                  {todo.author}
-                                </span>
-                              )}
+                            <div key={todo.id} className="flex items-center gap-1 ml-1">
                               <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
                                 ({todo.category || '기타'})
                               </span>
-                              <p className={`text-xs break-words leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                              <p className={`flex-1 text-xs break-all leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
                                 {todo.text}
                               </p>
+                              {todo.author && (
+                                <span className="font-mono text-[10px] text-gray-400 shrink-0 ml-1">
+                                  {todo.author}
+                                </span>
+                              )}
                             </div>
                           )
                         })}
