@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   collection,
   addDoc,
+  deleteDoc,
+  updateDoc,
+  doc,
   onSnapshot,
   serverTimestamp,
   query,
@@ -10,18 +13,9 @@ import {
 import { db } from './firebase'
 
 const CATEGORY_CONFIG = {
-  '외업': {
-    color: 'text-red-600',
-    borderClass: 'border-l-red-400',
-  },
-  '내업': {
-    color: 'text-blue-600',
-    borderClass: 'border-l-blue-400',
-  },
-  '기타': {
-    color: 'text-green-600',
-    borderClass: 'border-l-green-400',
-  },
+  '외업': { color: 'text-red-600' },
+  '내업': { color: 'text-blue-600' },
+  '기타': { color: 'text-green-600' },
 }
 
 export default function ProjectList({ onSelectProject }) {
@@ -29,6 +23,9 @@ export default function ProjectList({ onSelectProject }) {
   const [todos, setTodos] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
+  const [editingProjectId, setEditingProjectId] = useState(null)
+  const [editingName, setEditingName] = useState('')
+  const editNameRef = useRef(null)
 
   useEffect(() => {
     const q = query(collection(db, 'projects'), orderBy('createdAt', 'asc'))
@@ -46,6 +43,10 @@ export default function ProjectList({ onSelectProject }) {
     return unsub
   }, [])
 
+  useEffect(() => {
+    if (editingProjectId) editNameRef.current?.focus()
+  }, [editingProjectId])
+
   async function addProject() {
     const name = input.trim()
     if (!name) return
@@ -56,6 +57,29 @@ export default function ProjectList({ onSelectProject }) {
     })
   }
 
+  async function deleteProject(e, project) {
+    e.stopPropagation()
+    if (!window.confirm(`"${project.name}" 용역을 삭제하면 모든 투두가 함께 삭제됩니다.\n계속하시겠습니까?`)) return
+    const projectTodos = todos.filter((t) => t.projectId === project.id)
+    await Promise.all(projectTodos.map((t) => deleteDoc(doc(db, 'todos', t.id))))
+    await deleteDoc(doc(db, 'projects', project.id))
+  }
+
+  function startEditProject(e, project) {
+    e.stopPropagation()
+    setEditingProjectId(project.id)
+    setEditingName(project.name)
+  }
+
+  async function saveProjectName(e, project) {
+    e.stopPropagation()
+    const name = editingName.trim()
+    if (name && name !== project.name) {
+      await updateDoc(doc(db, 'projects', project.id), { name })
+    }
+    setEditingProjectId(null)
+  }
+
   function getProjectTodos(projectId) {
     return todos
       .filter((t) => t.projectId === projectId)
@@ -63,32 +87,32 @@ export default function ProjectList({ onSelectProject }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
-          <span className="font-mono text-base font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2.5 py-1">todo list</span>
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="px-3 py-2.5 max-w-2xl mx-auto flex items-center gap-2">
+          <span className="font-mono text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2 py-0.5">todo list</span>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <main className="max-w-2xl mx-auto px-3 py-4 space-y-4">
         {/* Add project input */}
-        <div className="bg-white rounded-xl shadow-sm p-4 space-y-1">
-          <p className="text-xs font-semibold text-gray-500 mb-2">새 용역 추가</p>
+        <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 space-y-2">
+          <p className="text-xs font-semibold text-gray-500">새 용역 추가</p>
           <div className="flex gap-2">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addProject()}
-              placeholder="용역명을 입력하세요... (예: [한국도로공사] 2026년 구조물 점검 용역)"
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+              placeholder="용역명을 입력하세요..."
+              className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
               maxLength={150}
             />
             <button
               onClick={addProject}
               disabled={!input.trim()}
-              className="bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-semibold transition active:scale-95 shrink-0"
+              className="bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition active:scale-95 shrink-0"
             >
               추가
             </button>
@@ -97,17 +121,13 @@ export default function ProjectList({ onSelectProject }) {
 
         {/* Project list */}
         <div>
-          <h2 className="text-sm font-bold text-gray-600 mb-3 px-1">현재 작업 중인 용역</h2>
-          <div className="space-y-3">
+          <h2 className="text-xs font-bold text-gray-500 mb-2 px-1">현재 작업 중인 용역</h2>
+          <div className="space-y-2">
             {loading && (
-              <div className="text-center py-12 text-gray-400">
-                <div className="text-3xl mb-2 animate-pulse">⏳</div>
-                <p className="text-sm">불러오는 중...</p>
-              </div>
+              <div className="text-center py-12 text-gray-400 text-sm">불러오는 중...</div>
             )}
             {!loading && projects.length === 0 && (
               <div className="text-center py-16 text-gray-400">
-                <div className="text-5xl mb-3">📁</div>
                 <p className="text-sm">용역을 추가하면 여기에 표시됩니다</p>
               </div>
             )}
@@ -116,21 +136,39 @@ export default function ProjectList({ onSelectProject }) {
               const total = projectTodos.length
               const done = projectTodos.filter((t) => t.done).length
               const pct = total ? Math.round((done / total) * 100) : 0
+              const isEditing = editingProjectId === project.id
+
               return (
                 <div
                   key={project.id}
-                  onClick={() => onSelectProject(project)}
-                  className="w-full bg-white rounded-xl shadow-sm px-5 py-4 text-left hover:shadow-md hover:border-indigo-200 border border-transparent transition group cursor-pointer"
+                  onClick={() => !isEditing && onSelectProject(project)}
+                  className={`w-full bg-white rounded-lg border border-gray-100 px-4 py-3 text-left transition ${isEditing ? '' : 'hover:border-indigo-200 cursor-pointer active:bg-gray-50'}`}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
                       {/* 용역명 */}
-                      <p className="text-sm font-bold text-gray-800 leading-snug break-words">
-                        용역명 : {project.name}
-                      </p>
+                      {isEditing ? (
+                        <input
+                          ref={editNameRef}
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveProjectName(e, project)
+                            if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full px-2 py-1 border border-indigo-400 rounded text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          maxLength={150}
+                        />
+                      ) : (
+                        <p className="text-sm font-bold text-gray-800 leading-snug break-words">
+                          용역명 : {project.name}
+                        </p>
+                      )}
 
                       {/* TODO 목록 */}
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-1.5 space-y-0.5">
                         <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo list</span>
                         {total === 0 && (
                           <p className="text-xs text-gray-400 ml-1">할 일을 추가해보세요</p>
@@ -157,7 +195,7 @@ export default function ProjectList({ onSelectProject }) {
 
                       {/* 진행률 바 */}
                       {total > 0 && (
-                        <div className="mt-3 space-y-1">
+                        <div className="mt-2 space-y-1">
                           <div className="flex items-center justify-between text-xs text-gray-400">
                             <span>{done} / {total} 완료</span>
                             <span>{pct}%</span>
@@ -171,12 +209,40 @@ export default function ProjectList({ onSelectProject }) {
                         </div>
                       )}
                     </div>
-                    <svg
-                      className="w-5 h-5 text-gray-300 group-hover:text-indigo-400 transition shrink-0 mt-1"
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
+
+                    {/* Action buttons */}
+                    <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {isEditing ? (
+                        <button
+                          onClick={(e) => saveProjectName(e, project)}
+                          className="text-indigo-500 hover:text-indigo-700 transition p-1 rounded active:bg-indigo-50"
+                          title="저장"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => startEditProject(e, project)}
+                          className="text-gray-300 hover:text-indigo-500 transition p-1 rounded active:bg-gray-100"
+                          title="용역명 수정"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
+                          </svg>
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => deleteProject(e, project)}
+                        className="text-gray-300 hover:text-red-500 transition p-1 rounded active:bg-gray-100"
+                        title="용역 삭제"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               )
