@@ -16,6 +16,7 @@ import { db } from './firebase'
 const CATEGORY_CONFIG = {
   '외업': { color: 'text-red-600' },
   '내업': { color: 'text-blue-600' },
+  '중요': { color: 'text-amber-500' },
   '기타': { color: 'text-green-600' },
 }
 
@@ -236,6 +237,7 @@ export default function ProjectList({ onSelectProject }) {
                             ({todo.category || '기타'})
                           </span>
                           <p className={`flex-1 text-xs break-all leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                            {todo.category === '중요' && <span className="text-amber-400 font-bold mr-0.5">★</span>}
                             {todo.text}
                           </p>
                           {todo.author && (
