@@ -138,7 +138,7 @@ export default function ProjectDetail({ project, onBack }) {
         </div>
       </header>
 
-      <main className="px-3 py-3 space-y-3 max-w-2xl mx-auto">
+      <main className="px-3 py-3 space-y-3">
         {/* Progress */}
         {totalCount > 0 && (
           <div className="bg-white rounded-lg border border-gray-100 px-4 py-3">
@@ -312,9 +312,9 @@ export default function ProjectDetail({ project, onBack }) {
                   </p>
                 )}
 
-                {/* Author badge — far right */}
+                {/* Author — far right */}
                 {todo.author && !isEditing && (
-                  <span className="shrink-0 bg-gray-800 text-white text-xs font-medium rounded-full px-2.5 py-1 border border-gray-700 leading-none">
+                  <span className="shrink-0 text-sm text-gray-400" style={{fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'}}>
                     {todo.author}
                   </span>
                 )}
