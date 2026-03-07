@@ -2,21 +2,98 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { getAuthorClass } from './authorConfig'
 
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
-const CAL_DOT_COLORS = {
-  '외업': 'bg-red-500',
-  '내업': 'bg-blue-500',
-  '중요': 'bg-amber-500',
-  '기타': 'bg-green-500',
+
+function MonthCalendarModal({ onClose }) {
+  const today = new Date()
+  const [viewYear, setViewYear] = useState(today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
+
+  const firstDay = new Date(viewYear, viewMonth, 1)
+  const lastDay = new Date(viewYear, viewMonth + 1, 0)
+  let startDow = firstDay.getDay() - 1
+  if (startDow < 0) startDow = 6
+
+  const cells = []
+  for (let i = 0; i < startDow; i++) cells.push(null)
+  for (let d = 1; d <= lastDay.getDate(); d++) cells.push(d)
+
+  const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
+    else setViewMonth(m => m - 1)
+  }
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
+    else setViewMonth(m => m + 1)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl p-5 w-80" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 transition active:scale-95">
+            <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <span className="text-sm font-bold text-gray-800">{viewYear}년 {monthNames[viewMonth]}</span>
+          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 transition active:scale-95">
+            <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+        <div className="grid grid-cols-7 mb-1">
+          {DAY_LABELS.map(d => (
+            <div key={d} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-y-1">
+          {cells.map((day, i) => {
+            if (!day) return <div key={i} />
+            const isToday = viewYear === today.getFullYear() && viewMonth === today.getMonth() && day === today.getDate()
+            return (
+              <div
+                key={i}
+                className={`flex items-center justify-center w-8 h-8 mx-auto rounded-full text-sm font-medium transition ${
+                  isToday ? 'bg-gray-900 text-white font-bold' : 'text-gray-700 hover:bg-gray-100 cursor-pointer'
+                }`}
+              >
+                {day}
+              </div>
+            )
+          })}
+        </div>
+        <button onClick={onClose} className="mt-4 w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition">닫기</button>
+      </div>
+    </div>
+  )
 }
 
-function WeekCalendar({ todos }) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+function WeekCalendar() {
+  const getToday = () => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
 
-  const dow = today.getDay()
-  const mondayOffset = dow === 0 ? -6 : 1 - dow
-  const monday = new Date(today)
-  monday.setDate(today.getDate() + mondayOffset)
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [selectedDate, setSelectedDate] = useState(() => getToday())
+  const [showMonthCal, setShowMonthCal] = useState(false)
+
+  const today = getToday()
+
+  const baseMonday = (() => {
+    const dow = today.getDay()
+    const offset = dow === 0 ? -6 : 1 - dow
+    const d = new Date(today)
+    d.setDate(today.getDate() + offset)
+    return d
+  })()
+
+  const monday = new Date(baseMonday)
+  monday.setDate(baseMonday.getDate() + weekOffset * 7)
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday)
@@ -24,55 +101,86 @@ function WeekCalendar({ todos }) {
     return d
   })
 
-  const todosByDate = {}
-  todos.forEach((todo) => {
-    if (!todo.createdAt) return
-    const d = todo.createdAt.toDate ? todo.createdAt.toDate() : new Date(todo.createdAt)
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-    if (!todosByDate[key]) todosByDate[key] = []
-    todosByDate[key].push(todo)
-  })
+  const monthNum = monday.getMonth() + 1
+  const endMonth = days[6].getMonth() + 1
+  const monthLabel = monthNum === endMonth ? `${monthNum}월` : `${monthNum}-${endMonth}월`
 
   const weekNum = Math.ceil(
-    (today.getDate() + new Date(today.getFullYear(), today.getMonth(), 1).getDay()) / 7
+    (monday.getDate() + new Date(monday.getFullYear(), monday.getMonth(), 1).getDay()) / 7
   )
-  const monthNum = today.getMonth() + 1
 
   return (
-    <div className="bg-white rounded-lg border border-gray-100 px-4 pt-3 pb-4">
-      <div className="flex items-center justify-center mb-3">
-        <span className="text-sm font-semibold text-gray-700">{monthNum}월 {weekNum}주차</span>
-        <svg className="w-3.5 h-3.5 ml-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-      <div className="grid grid-cols-7">
-        {days.map((day, i) => {
-          const isToday = day.getTime() === today.getTime()
-          const key = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`
-          const dayTodos = todosByDate[key] || []
-          const dotTypes = [...new Set(dayTodos.map((t) => t.category || '기타'))].slice(0, 3)
+    <>
+      <div className="bg-white rounded-lg border border-gray-100 px-4 pt-3 pb-4">
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => setWeekOffset(o => o - 1)}
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition active:scale-95"
+          >
+            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
 
-          return (
-            <div key={i} className="flex flex-col items-center gap-1">
-              <span className="text-[11px] font-medium text-gray-400 tracking-wide">{DAY_LABELS[i]}</span>
-              <div
-                className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-semibold ${
-                  isToday ? 'bg-gray-900 text-white' : 'text-gray-700'
-                }`}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700">{monthLabel} {weekNum}주차</span>
+            <button
+              onClick={() => setShowMonthCal(true)}
+              className="text-lg leading-none hover:scale-110 transition active:scale-95"
+              title="월 달력 보기"
+            >
+              📅
+            </button>
+            {weekOffset !== 0 && (
+              <button
+                onClick={() => { setWeekOffset(0); setSelectedDate(today) }}
+                className="text-[10px] font-semibold text-indigo-500 border border-indigo-300 rounded px-1.5 py-0.5 hover:bg-indigo-50 transition"
               >
-                {day.getDate()}
+                오늘
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => setWeekOffset(o => o + 1)}
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition active:scale-95"
+          >
+            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7">
+          {days.map((day, i) => {
+            const isToday = day.getTime() === today.getTime()
+            const isSelected = !isToday && day.getTime() === selectedDate.getTime()
+
+            return (
+              <div
+                key={i}
+                onClick={() => setSelectedDate(new Date(day))}
+                className="flex flex-col items-center gap-1 cursor-pointer"
+              >
+                <span className="text-[11px] font-medium text-gray-400 tracking-wide">{DAY_LABELS[i]}</span>
+                <div
+                  className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-semibold transition ${
+                    isToday
+                      ? 'bg-gray-900 text-white'
+                      : isSelected
+                      ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-300'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {day.getDate()}
+                </div>
               </div>
-              <div className="flex gap-0.5 h-2 items-center">
-                {dotTypes.map((type, j) => (
-                  <span key={j} className={`w-1.5 h-1.5 rounded-full ${CAL_DOT_COLORS[type] || 'bg-gray-400'}`} />
-                ))}
-              </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
-    </div>
+      {showMonthCal && <MonthCalendarModal onClose={() => setShowMonthCal(false)} />}
+    </>
   )
 }
 
@@ -104,7 +212,9 @@ export default function ProjectList({ onSelectProject }) {
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
+  const [showAddModal, setShowAddModal] = useState(false)
   const editNameRef = useRef(null)
+  const addInputRef = useRef(null)
 
   const closeMenu = useCallback(() => setOpenMenuId(null), [])
   useEffect(() => {
@@ -112,6 +222,10 @@ export default function ProjectList({ onSelectProject }) {
     document.addEventListener('click', closeMenu)
     return () => document.removeEventListener('click', closeMenu)
   }, [openMenuId, closeMenu])
+
+  useEffect(() => {
+    if (showAddModal) setTimeout(() => addInputRef.current?.focus(), 50)
+  }, [showAddModal])
 
   useEffect(() => {
     const q = query(collection(db, 'projects'), orderBy('createdAt', 'asc'))
@@ -137,6 +251,7 @@ export default function ProjectList({ onSelectProject }) {
     const name = input.trim()
     if (!name) return
     setInput('')
+    setShowAddModal(false)
     await addDoc(collection(db, 'projects'), {
       name,
       createdAt: serverTimestamp(),
@@ -176,41 +291,76 @@ export default function ProjectList({ onSelectProject }) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="px-4 py-2.5 max-w-2xl mx-auto flex items-center gap-2">
-          <span className="font-mono text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2 py-0.5">todo list</span>
+        <div className="px-4 py-2.5 max-w-2xl mx-auto flex items-center justify-between">
+          <span className="font-mono text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2 py-0.5">
+            todo list
+          </span>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm transition active:scale-95"
+            title="새 용역 추가"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-        {/* Week Calendar */}
-        <WeekCalendar todos={todos} />
-
-        {/* Add project input */}
-        <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 space-y-2">
-          <p className="text-xs font-semibold text-gray-500">새 용역 추가</p>
-          <div className="flex gap-2">
+      {/* Add Project Modal */}
+      {showAddModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => { setShowAddModal(false); setInput('') }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl p-5 w-80"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-bold text-gray-800 mb-3">새 용역 추가</p>
             <input
+              ref={addInputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addProject()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') addProject()
+                if (e.key === 'Escape') { setShowAddModal(false); setInput('') }
+              }}
               placeholder="용역명을 입력하세요..."
-              className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition mb-3"
               maxLength={150}
             />
-            <button
-              onClick={addProject}
-              disabled={!input.trim()}
-              className="bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition active:scale-95 shrink-0"
-            >
-              추가
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowAddModal(false); setInput('') }}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 transition active:scale-95"
+              >
+                취소
+              </button>
+              <button
+                onClick={addProject}
+                disabled={!input.trim()}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed transition active:scale-95"
+              >
+                추가
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        {/* Week Calendar */}
+        <WeekCalendar />
 
         {/* Project list */}
         <div>
-          <h2 className="text-xs font-bold text-gray-500 mb-2 px-1">현재 작업 중인 용역</h2>
+          <div className="mb-2 px-1">
+            <span className="font-mono text-xs font-bold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2 py-0.5">
+              W.I.P
+            </span>
+          </div>
           <div className="space-y-2">
             {loading && (
               <div className="text-center py-12 text-gray-400 text-sm">불러오는 중...</div>
