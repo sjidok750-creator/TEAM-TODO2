@@ -22,6 +22,10 @@ const CATEGORY_CONFIG = {
     color: 'text-blue-600',
     badgeClass: 'bg-blue-50 text-blue-600 border-blue-200',
   },
+  '중요': {
+    color: 'text-amber-500',
+    badgeClass: 'bg-amber-50 text-amber-600 border-amber-200',
+  },
   '기타': {
     color: 'text-green-600',
     badgeClass: 'bg-green-50 text-green-600 border-green-200',
@@ -154,12 +158,12 @@ export default function ProjectDetail({ project, onBack }) {
               />
             </div>
             <div className="flex gap-3 mt-2">
-              {['외업', '내업', '기타'].map((cat) => {
+              {['외업', '내업', '중요', '기타'].map((cat) => {
                 const count = todos.filter((t) => t.category === cat).length
                 const cfg = CATEGORY_CONFIG[cat]
                 return (
                   <span key={cat} className={`text-xs font-semibold ${cfg.color}`}>
-                    {cat} {count}
+                    {cat === '중요' && '★ '}{cat} {count}
                   </span>
                 )
               })}
@@ -171,7 +175,7 @@ export default function ProjectDetail({ project, onBack }) {
         <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 space-y-2.5">
           {/* Category */}
           <div className="flex gap-2">
-            {['외업', '내업', '기타'].map((cat) => {
+            {['외업', '내업', '중요', '기타'].map((cat) => {
               const cfg = CATEGORY_CONFIG[cat]
               return (
                 <button
@@ -183,7 +187,7 @@ export default function ProjectDetail({ project, onBack }) {
                       : 'text-gray-400 border-gray-200 bg-white'
                   }`}
                 >
-                  {cat}
+                  {cat === '중요' && '★ '}{cat}
                 </button>
               )
             })}
@@ -317,6 +321,7 @@ export default function ProjectDetail({ project, onBack }) {
                   <p className={`flex-1 text-sm leading-snug break-all ${
                     todo.done ? 'line-through text-gray-400' : 'text-gray-800'
                   }`}>
+                    {todo.category === '중요' && <span className="text-amber-400 font-bold mr-1">★</span>}
                     {todo.text}
                   </p>
                 )}
