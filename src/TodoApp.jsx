@@ -48,12 +48,97 @@ const WORK_TYPES = [
   { key: '기타', label: '기타', color: 'bg-gray-100 text-gray-600' },
 ]
 
+const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+const DOT_COLORS = {
+  '외업': 'bg-blue-500',
+  '내업': 'bg-green-500',
+  '중요': 'bg-red-500',
+  '기타': 'bg-gray-400',
+}
+
+function WeekCalendar({ todos, selectedDate, onSelectDate }) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const dow = today.getDay()
+  const mondayOffset = dow === 0 ? -6 : 1 - dow
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + mondayOffset)
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return d
+  })
+
+  const todosByDate = {}
+  todos.forEach((todo) => {
+    if (!todo.createdAt) return
+    const d = todo.createdAt.toDate ? todo.createdAt.toDate() : new Date(todo.createdAt)
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+    if (!todosByDate[key]) todosByDate[key] = []
+    todosByDate[key].push(todo)
+  })
+
+  const weekNum = Math.ceil(
+    (today.getDate() + new Date(today.getFullYear(), today.getMonth(), 1).getDay()) / 7
+  )
+  const monthNum = today.getMonth() + 1
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm px-4 pt-3 pb-4">
+      <div className="flex items-center justify-center mb-4">
+        <span className="text-sm font-semibold text-gray-700">{monthNum}월 {weekNum}주차</span>
+        <svg className="w-3.5 h-3.5 ml-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+      <div className="grid grid-cols-7">
+        {days.map((day, i) => {
+          const isToday = day.getTime() === today.getTime()
+          const isSelected = selectedDate && day.getTime() === selectedDate.getTime()
+          const key = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`
+          const dayTodos = todosByDate[key] || []
+          const dotTypes = [...new Set(dayTodos.map((t) => t.workType || '기타'))].slice(0, 3)
+
+          return (
+            <div
+              key={i}
+              className="flex flex-col items-center gap-1 cursor-pointer"
+              onClick={() => onSelectDate(isSelected ? null : day)}
+            >
+              <span className="text-[11px] font-medium text-gray-400 tracking-wide">{DAY_LABELS[i]}</span>
+              <div
+                className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-semibold transition-all ${
+                  isToday
+                    ? 'bg-gray-900 text-white'
+                    : isSelected
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {day.getDate()}
+              </div>
+              <div className="flex gap-0.5 h-2 items-center">
+                {dotTypes.map((type, j) => (
+                  <span key={j} className={`w-1.5 h-1.5 rounded-full ${DOT_COLORS[type] || 'bg-gray-400'}`} />
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function TodoApp({ nickname, onChangeNickname }) {
   const [todos, setTodos] = useState([])
   const [input, setInput] = useState('')
   const [workType, setWorkType] = useState('기타')
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all') // all | active | done
+  const [selectedDate, setSelectedDate] = useState(null)
   const inputRef = useRef(null)
 
   // Firestore real-time listener
@@ -93,6 +178,13 @@ export default function TodoApp({ nickname, onChangeNickname }) {
   }
 
   const filtered = todos.filter((t) => {
+    if (selectedDate) {
+      if (!t.createdAt) return false
+      const d = t.createdAt.toDate ? t.createdAt.toDate() : new Date(t.createdAt)
+      const tDate = new Date(d)
+      tDate.setHours(0, 0, 0, 0)
+      if (tDate.getTime() !== selectedDate.getTime()) return false
+    }
     if (filter === 'active') return !t.done
     if (filter === 'done') return t.done
     return true
@@ -123,6 +215,9 @@ export default function TodoApp({ nickname, onChangeNickname }) {
       </header>
 
       <main className="max-w-xl mx-auto px-4 py-6 space-y-4">
+        {/* Week Calendar */}
+        <WeekCalendar todos={todos} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+
         {/* Progress */}
         {totalCount > 0 && (
           <div className="bg-white rounded-xl shadow-sm p-4">
