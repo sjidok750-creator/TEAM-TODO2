@@ -1,5 +1,81 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { getAuthorClass } from './authorConfig'
+
+const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+const CAL_DOT_COLORS = {
+  '외업': 'bg-red-500',
+  '내업': 'bg-blue-500',
+  '중요': 'bg-amber-500',
+  '기타': 'bg-green-500',
+}
+
+function WeekCalendar({ todos }) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const dow = today.getDay()
+  const mondayOffset = dow === 0 ? -6 : 1 - dow
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + mondayOffset)
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return d
+  })
+
+  const todosByDate = {}
+  todos.forEach((todo) => {
+    if (!todo.createdAt) return
+    const d = todo.createdAt.toDate ? todo.createdAt.toDate() : new Date(todo.createdAt)
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+    if (!todosByDate[key]) todosByDate[key] = []
+    todosByDate[key].push(todo)
+  })
+
+  const weekNum = Math.ceil(
+    (today.getDate() + new Date(today.getFullYear(), today.getMonth(), 1).getDay()) / 7
+  )
+  const monthNum = today.getMonth() + 1
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-100 px-4 pt-3 pb-4">
+      <div className="flex items-center justify-center mb-3">
+        <span className="text-sm font-semibold text-gray-700">{monthNum}월 {weekNum}주차</span>
+        <svg className="w-3.5 h-3.5 ml-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+      <div className="grid grid-cols-7">
+        {days.map((day, i) => {
+          const isToday = day.getTime() === today.getTime()
+          const key = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`
+          const dayTodos = todosByDate[key] || []
+          const dotTypes = [...new Set(dayTodos.map((t) => t.category || '기타'))].slice(0, 3)
+
+          return (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <span className="text-[11px] font-medium text-gray-400 tracking-wide">{DAY_LABELS[i]}</span>
+              <div
+                className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-semibold ${
+                  isToday ? 'bg-gray-900 text-white' : 'text-gray-700'
+                }`}
+              >
+                {day.getDate()}
+              </div>
+              <div className="flex gap-0.5 h-2 items-center">
+                {dotTypes.map((type, j) => (
+                  <span key={j} className={`w-1.5 h-1.5 rounded-full ${CAL_DOT_COLORS[type] || 'bg-gray-400'}`} />
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 import {
   collection,
   addDoc,
@@ -106,6 +182,9 @@ export default function ProjectList({ onSelectProject }) {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        {/* Week Calendar */}
+        <WeekCalendar todos={todos} />
+
         {/* Add project input */}
         <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 space-y-2">
           <p className="text-xs font-semibold text-gray-500">새 용역 추가</p>
