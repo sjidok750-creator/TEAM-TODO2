@@ -667,7 +667,10 @@ ${projectBlocks}
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 py-2.5 max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-lg font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2.5 py-1 leading-tight">
+              TODO LIST
+            </span>
             {(() => {
               const d = new Date()
               const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -681,10 +684,14 @@ ${projectBlocks}
             })()}
             <button
               onClick={() => setShowMonthCal(true)}
-              className="text-lg leading-none hover:scale-110 transition active:scale-95"
+              className="flex items-center justify-center w-8 h-8 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 transition active:scale-95"
               title="달력 보기"
             >
-              📅
+              <svg className="w-4 h-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 2v4M8 2v4M3 10h18"/>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>
+              </svg>
             </button>
           </div>
           <button
