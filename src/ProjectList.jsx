@@ -232,6 +232,9 @@ export default function ProjectList({ onSelectProject }) {
   const [uploading, setUploading] = useState(false)
   const [fileInputKey, setFileInputKey] = useState(0)
   const [downloadingId, setDownloadingId] = useState(null)
+  const [viewingFile, setViewingFile] = useState(null)
+  const [viewingFileId, setViewingFileId] = useState(null)
+  const [editingDate, setEditingDate] = useState('')
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
 
@@ -307,14 +310,17 @@ export default function ProjectList({ onSelectProject }) {
     e.stopPropagation()
     setEditingProjectId(project.id)
     setEditingName(project.name)
+    setEditingDate(project.completionDate || '')
   }
 
   async function saveProjectName(e, project) {
     e.stopPropagation()
     const name = editingName.trim()
-    if (name && name !== project.name) {
-      await updateDoc(doc(db, 'projects', project.id), { name })
-    }
+    if (!name) { setEditingProjectId(null); return }
+    await updateDoc(doc(db, 'projects', project.id), {
+      name,
+      completionDate: editingDate.trim() || null,
+    })
     setEditingProjectId(null)
   }
 
@@ -448,6 +454,39 @@ export default function ProjectList({ onSelectProject }) {
     await deleteDoc(doc(db, 'sharedFiles', file.id))
   }
 
+  async function viewFile(file) {
+    if (viewingFileId) return
+    // 구버전 Storage URL — 새 탭으로 열기
+    if (file.url) { window.open(file.url, '_blank'); return }
+    // 단일 문서
+    if (file.data) {
+      setViewingFile({ dataUrl: file.data, name: file.name, type: file.type || '' })
+      return
+    }
+    // 청크 재조합
+    setViewingFileId(file.id)
+    try {
+      const snap = await getDocs(
+        query(collection(db, 'sharedFiles', file.id, 'chunks'), orderBy('index'))
+      )
+      const b64 = snap.docs.map(d => d.data().data).join('')
+      setViewingFile({ dataUrl: file.prefix + b64, name: file.name, type: file.type || '' })
+    } catch (err) {
+      console.error('파일 로드 실패:', err)
+      alert('파일을 불러오는데 실패했습니다.')
+    } finally {
+      setViewingFileId(null)
+    }
+  }
+
+  function downloadCurrentFile() {
+    if (!viewingFile?.dataUrl) return
+    const a = document.createElement('a')
+    a.href = viewingFile.dataUrl
+    a.download = viewingFile.name
+    a.click()
+  }
+
   function handleExportPDF() {
     const now = new Date()
     const month = now.getMonth() + 1
@@ -520,14 +559,40 @@ export default function ProjectList({ onSelectProject }) {
   @page { size: A4; margin: 18mm 15mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Malgun Gothic','Apple SD Gothic Neo','Nanum Gothic',sans-serif; font-size: 9pt; color: #111; background: white; }
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    #toolbar { display: none; }
+    #content { margin-top: 0; }
+  }
+  #toolbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 46px;
+    background: white; border-bottom: 1px solid #e5e7eb;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; z-index: 100; gap: 8px;
+  }
+  #toolbar .title { font-weight: 700; font-size: 10pt; color: #111; flex: 1; }
+  #toolbar button {
+    padding: 5px 14px; border-radius: 6px; font-size: 9pt; font-weight: 600;
+    cursor: pointer; border: none; transition: opacity 0.1s;
+  }
+  #toolbar button:active { opacity: 0.7; }
+  #btn-print { background: #4f46e5; color: white; }
+  #btn-close { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+  #content { margin-top: 54px; }
 </style></head><body>
+<div id="toolbar">
+  <span class="title">${month}월 과업진행현황(W.I.P)</span>
+  <button id="btn-print" onclick="window.print()">인쇄</button>
+  <button id="btn-close" onclick="window.close()">✕ 닫기</button>
+</div>
+<div id="content">
 <div style="text-align:center;padding-bottom:10px;border-bottom:2.5px solid #111;margin-bottom:12px;">
   <div style="font-size:14pt;font-weight:700;letter-spacing:1px;margin-bottom:3px;">${month}월 과업진행현황(W.I.P)</div>
   <div style="font-size:8pt;color:#666;">출력일: ${dateStr} &nbsp;|&nbsp; 총 ${projects.length}건</div>
 </div>
 ${projectBlocks}
 <div style="margin-top:14px;padding-top:6px;border-top:1px solid #d1d5db;font-size:7.5pt;color:#9ca3af;text-align:right;">* 본 문서는 팀 투두 시스템에서 자동 생성되었습니다</div>
+</div>
 </body></html>`
 
     const win = window.open('', '_blank')
@@ -535,7 +600,6 @@ ${projectBlocks}
     win.document.write(html)
     win.document.close()
     win.focus()
-    setTimeout(() => { win.print() }, 400)
   }
 
   return (
@@ -557,6 +621,55 @@ ${projectBlocks}
           </button>
         </div>
       </header>
+
+      {/* File Viewer Modal */}
+      {viewingFile && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/90">
+          <div className="flex items-center justify-between px-4 py-3 bg-black/60 shrink-0">
+            <span className="text-white text-sm font-medium truncate max-w-xs">{viewingFile.name}</span>
+            <div className="flex items-center gap-2 ml-4 shrink-0">
+              <button
+                onClick={downloadCurrentFile}
+                className="text-xs text-gray-300 border border-gray-500 rounded px-3 py-1.5 hover:bg-gray-700 transition"
+              >
+                다운로드
+              </button>
+              <button
+                onClick={() => setViewingFile(null)}
+                className="w-8 h-8 flex items-center justify-center text-white text-lg rounded hover:bg-gray-700 transition"
+                title="닫기"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4 min-h-0">
+            {viewingFile.type.startsWith('image/') ? (
+              <img
+                src={viewingFile.dataUrl}
+                alt={viewingFile.name}
+                className="max-w-full max-h-full object-contain rounded shadow-lg"
+              />
+            ) : viewingFile.type === 'application/pdf' ? (
+              <iframe
+                src={viewingFile.dataUrl}
+                className="w-full h-full rounded"
+                title={viewingFile.name}
+              />
+            ) : (
+              <div className="text-center text-white">
+                <p className="text-gray-400 mb-5 text-sm">이 파일 형식은 미리보기를 지원하지 않습니다.</p>
+                <button
+                  onClick={downloadCurrentFile}
+                  className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-semibold transition active:scale-95"
+                >
+                  다운로드
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Add Project Modal */}
       {showAddModal && (
@@ -748,12 +861,12 @@ ${projectBlocks}
                 className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-xs"
               >
                 <button
-                  onClick={(e) => { e.stopPropagation(); downloadFile(file) }}
-                  disabled={downloadingId === file.id}
+                  onClick={(e) => { e.stopPropagation(); viewFile(file) }}
+                  disabled={viewingFileId === file.id}
                   className="text-gray-700 hover:text-indigo-600 transition disabled:opacity-50"
                   title={file.name}
                 >
-                  {downloadingId === file.id ? '다운로드중...' : formatFileName(file.name)}
+                  {viewingFileId === file.id ? '로딩중...' : formatFileName(file.name)}
                 </button>
                 <button
                   onClick={() => deleteSharedFile(file)}
@@ -798,30 +911,37 @@ ${projectBlocks}
                 >
                   {/* 용역명 */}
                   {isEditing ? (
-                    <input
-                      ref={editNameRef}
-                      type="text"
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveProjectName(e, project)
-                        if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-full px-2 py-1 border border-indigo-400 rounded text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                      maxLength={150}
-                    />
-                  ) : (
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <p className="text-sm font-bold text-gray-800 leading-snug break-words">
-                        용역명 : {project.name}
-                      </p>
-                      {project.completionDate && (
-                        <span className="text-xs font-medium text-gray-400 shrink-0">
-                          준공: {project.completionDate}
-                        </span>
-                      )}
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <input
+                        ref={editNameRef}
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveProjectName(e, project)
+                          if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
+                        }}
+                        placeholder="용역명"
+                        className="w-full px-2 py-1 border border-indigo-400 rounded text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        maxLength={150}
+                      />
+                      <input
+                        type="text"
+                        value={editingDate}
+                        onChange={(e) => setEditingDate(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveProjectName(e, project)
+                          if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
+                        }}
+                        placeholder="준공일 YY/MM/DD (예: 26/12/31)"
+                        className="mt-1.5 w-full px-2 py-1 border border-indigo-200 rounded text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        maxLength={8}
+                      />
                     </div>
+                  ) : (
+                    <p className="text-sm font-bold text-gray-800 leading-snug break-words">
+                      용역명 : {project.name}
+                    </p>
                   )}
 
                   {/* TODO 목록 */}
@@ -829,6 +949,14 @@ ${projectBlocks}
                     {/* todo list 라벨 + ··· 버튼 */}
                     <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo list</span>
+                      {project.completionDate && (
+                        <span
+                          className="inline-block text-xs font-normal text-orange-500 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5"
+                          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                        >
+                          SCD {project.completionDate}
+                        </span>
+                      )}
                       <div className="relative">
                         {isEditing ? (
                           <button
