@@ -41,6 +41,9 @@ export default function ProjectDetail({ project, onBack }) {
   const [loading, setLoading] = useState(true)
   const [editingTodoId, setEditingTodoId] = useState(null)
   const [editingText, setEditingText] = useState('')
+  const [editingCategory, setEditingCategory] = useState('외업')
+  const [editingAuthor, setEditingAuthor] = useState('')
+  const [confirmDialog, setConfirmDialog] = useState(null) // { message, onConfirm }
   const [draggedId, setDraggedId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const inputRef = useRef(null)
@@ -106,13 +109,21 @@ export default function ProjectDetail({ project, onBack }) {
   function startEditTodo(todo) {
     setEditingTodoId(todo.id)
     setEditingText(todo.text)
+    setEditingCategory(todo.category || '외업')
+    setEditingAuthor(todo.author || '')
     setTimeout(() => editTodoRef.current?.focus(), 0)
   }
 
   async function saveTodoEdit(todo) {
     const text = editingText.trim()
-    if (text && text !== todo.text) {
-      await updateDoc(doc(db, 'todos', todo.id), { text })
+    if (text) {
+      const updates = {}
+      if (text !== todo.text) updates.text = text
+      if (editingCategory !== todo.category) updates.category = editingCategory
+      if (editingAuthor && editingAuthor !== todo.author) updates.author = editingAuthor
+      if (Object.keys(updates).length > 0) {
+        await updateDoc(doc(db, 'todos', todo.id), updates)
+      }
     }
     setEditingTodoId(null)
   }
@@ -148,6 +159,41 @@ export default function ProjectDetail({ project, onBack }) {
   return (
     <div className="min-h-screen bg-gray-50">
       <ToastContainer />
+
+      {/* 삭제 확인 모달 */}
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 min-w-[260px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1rem' }}>
+              {confirmDialog.message}
+            </p>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null) }}
+                className="flex-1 py-2 rounded-xl text-white text-sm"
+                style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto flex items-center gap-2 px-4 py-2.5">
@@ -177,8 +223,8 @@ export default function ProjectDetail({ project, onBack }) {
             </div>
             <div className="w-full bg-gray-100 rounded-full h-1.5">
               <div
-                className="bg-indigo-500 h-1.5 rounded-full transition-all duration-500"
-                style={{ width: `${totalCount ? (doneCount / totalCount) * 100 : 0}%` }}
+                className="h-1.5 rounded-full transition-all duration-500"
+                style={{ width: `${totalCount ? (doneCount / totalCount) * 100 : 0}%`, backgroundColor: '#E8694A' }}
               />
             </div>
             <div className="flex gap-3 mt-2">
@@ -310,15 +356,17 @@ export default function ProjectDetail({ project, onBack }) {
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(todo.id) }}
                 onDrop={(e) => { e.preventDefault(); handleDrop(todo.id) }}
                 onDragEnd={resetDrag}
-                className={`flex items-center gap-2.5 px-4 py-3 group transition ${
-                  i < filtered.length - 1 ? 'border-b border-gray-100' : ''
-                } ${todo.done && !isEditing ? 'opacity-50' : ''} ${
-                  isDragging ? 'opacity-30 bg-gray-50' : ''
-                } ${isDragOver ? 'border-t-2 border-indigo-400' : ''}`}
+                className={`flex gap-2.5 px-4 py-3 group transition ${
+                  isEditing ? 'items-start' : 'items-center'
+                } ${i < filtered.length - 1 ? 'border-b border-gray-100' : ''} ${
+                  todo.done && !isEditing ? 'opacity-50' : ''
+                } ${isDragging ? 'opacity-30 bg-gray-50' : ''} ${
+                  isDragOver ? 'border-t-2 border-indigo-400' : ''
+                }`}
               >
                 {/* Drag handle */}
                 <div
-                  className="shrink-0 cursor-grab text-gray-300 hover:text-gray-500 active:cursor-grabbing select-none"
+                  className="shrink-0 cursor-grab text-gray-300 hover:text-gray-500 active:cursor-grabbing select-none mt-0.5"
                   title="드래그하여 순서 변경"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -329,7 +377,7 @@ export default function ProjectDetail({ project, onBack }) {
                 {/* Checkbox */}
                 <button
                   onClick={() => !isEditing && toggleDone(todo)}
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition ${
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition mt-0.5 ${
                     todo.done
                       ? 'bg-indigo-500 border-indigo-500'
                       : 'border-gray-300 hover:border-indigo-400'
@@ -342,48 +390,83 @@ export default function ProjectDetail({ project, onBack }) {
                   )}
                 </button>
 
-                {/* Category */}
-                {!isEditing && (
-                  <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
-                    {todo.category || '기타'}
-                  </span>
-                )}
-
-                {/* Text or Edit input */}
                 {isEditing ? (
-                  <input
-                    ref={editTodoRef}
-                    type="text"
-                    value={editingText}
-                    onChange={(e) => setEditingText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') saveTodoEdit(todo)
-                      if (e.key === 'Escape') setEditingTodoId(null)
-                    }}
-                    className="flex-1 px-2 py-1 border border-indigo-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                    maxLength={200}
-                  />
+                  /* ── 수정 모드: 카테고리 + 작성자 + 텍스트 세로 배열 ── */
+                  <div className="flex-1 flex flex-col gap-2">
+                    {/* Category */}
+                    <div className="flex gap-1.5 flex-wrap">
+                      {['외업', '내업', '중요', '기타'].map((cat) => {
+                        const c = CATEGORY_CONFIG[cat]
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setEditingCategory(cat)}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold border transition active:scale-95 ${
+                              editingCategory === cat ? c.badgeClass : 'text-gray-400 border-gray-200 bg-white'
+                            }`}
+                          >
+                            {cat === '중요' && '★ '}{cat}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {/* Author */}
+                    <div className="flex flex-wrap gap-1">
+                      {AUTHORS.map((name) => (
+                        <button
+                          key={name}
+                          type="button"
+                          onClick={() => setEditingAuthor(editingAuthor === name ? '' : name)}
+                          className={`text-xs font-semibold rounded-full px-2.5 py-0.5 border transition active:scale-95 ${
+                            editingAuthor === name
+                              ? getAuthorClass(name)
+                              : 'text-gray-400 bg-white border-gray-200'
+                          }`}
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Text input */}
+                    <input
+                      ref={editTodoRef}
+                      type="text"
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveTodoEdit(todo)
+                        if (e.key === 'Escape') setEditingTodoId(null)
+                      }}
+                      className="px-2 py-1.5 border border-indigo-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 w-full"
+                      maxLength={200}
+                    />
+                  </div>
                 ) : (
-                  <p className={`flex-1 text-sm leading-snug break-all ${
-                    todo.done ? 'line-through text-gray-400' : 'text-gray-800'
-                  }`}>
-                    {todo.category === '중요' && <span className="text-amber-400 font-bold mr-1">★</span>}
-                    {todo.text}
-                  </p>
+                  /* ── 일반 모드 ── */
+                  <>
+                    <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
+                      {todo.category || '기타'}
+                    </span>
+                    <p className={`flex-1 text-sm leading-snug break-all ${
+                      todo.done ? 'line-through text-gray-400' : 'text-gray-800'
+                    }`}>
+                      {todo.category === '중요' && <span className="text-amber-400 font-bold mr-1">★</span>}
+                      {todo.text}
+                    </p>
+                    {todo.author && (
+                      <span className={`shrink-0 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
+                        {todo.author}
+                      </span>
+                    )}
+                  </>
                 )}
 
-                {/* Author */}
-                {todo.author && !isEditing && (
-                  <span className={`shrink-0 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
-                    {todo.author}
-                  </span>
-                )}
-
-                {/* Edit / Delete */}
+                {/* Edit / Delete / Save */}
                 {isEditing ? (
                   <button
                     onClick={() => saveTodoEdit(todo)}
-                    className="text-indigo-500 hover:text-indigo-700 transition shrink-0 p-0.5"
+                    className="text-indigo-500 hover:text-indigo-700 transition shrink-0 p-0.5 mt-0.5"
                     title="저장"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -402,7 +485,7 @@ export default function ProjectDetail({ project, onBack }) {
                       </svg>
                     </button>
                     <button
-                      onClick={() => deleteTodo(todo.id)}
+                      onClick={() => setConfirmDialog({ message: 'Delete this item?', onConfirm: () => deleteTodo(todo.id) })}
                       className="text-gray-300 hover:text-red-400 transition"
                       title="삭제"
                     >
