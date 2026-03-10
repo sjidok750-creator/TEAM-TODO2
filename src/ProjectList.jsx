@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useToast } from './Toast'
 import { getAuthorClass, getAuthorPhone } from './authorConfig'
 import {
   collection,
@@ -216,7 +215,6 @@ function formatFileName(name) {
 }
 
 export default function ProjectList({ onSelectProject }) {
-  const { addToast, ToastContainer } = useToast()
   const [callTarget, setCallTarget] = useState(null) // { name, phone }
   const [confirmDialog, setConfirmDialog] = useState(null) // { message, onConfirm }
   const [projects, setProjects] = useState([])
@@ -396,26 +394,13 @@ export default function ProjectList({ onSelectProject }) {
     e.stopPropagation()
     setConfirmDialog({
       message: `"${project.name}" 삭제하시겠습니까?`,
-      onConfirm: async () => {
-        const projectTodos = todos.filter((t) => t.projectId === project.id)
-        await Promise.all(projectTodos.map((t) => deleteDoc(doc(db, 'todos', t.id))))
-        await deleteDoc(doc(db, 'projects', project.id))
-        addToast(`"${project.name}" 삭제됨`, {
-          icon: '🗑️',
-          duration: 6000,
-          action: {
-            label: '되돌리기',
-            fn: async () => {
-              const newDoc = await addDoc(collection(db, 'projects'), {
-                name: project.name,
-                completionDate: project.completionDate || '',
-                order: project.order ?? 0,
-                createdAt: project.createdAt,
-              })
-              await Promise.all(projectTodos.map((t) =>
-                addDoc(collection(db, 'todos'), { ...t, projectId: newDoc.id, id: undefined })
-              ))
-            },
+      onConfirm: () => {
+        setConfirmDialog({
+          message: `Are you sure? This will permanently delete the project and all its tasks.`,
+          onConfirm: async () => {
+            const projectTodos = todos.filter((t) => t.projectId === project.id)
+            await Promise.all(projectTodos.map((t) => deleteDoc(doc(db, 'todos', t.id))))
+            await deleteDoc(doc(db, 'projects', project.id))
           },
         })
       },
@@ -715,7 +700,6 @@ ${projectBlocks}
       onTouchMove={onPullMove}
       onTouchEnd={onPullEnd}
     >
-      <ToastContainer />
       {/* Pull-to-refresh 인디케이터 */}
       {pullDist > 10 && (
         <div

@@ -48,7 +48,7 @@ export default function ProjectDetail({ project, onBack }) {
   const [dragOverId, setDragOverId] = useState(null)
   const inputRef = useRef(null)
   const listRef = useRef(null)
-  const touchDragRef = useRef({ id: null, overId: null })
+  const touchDragRef = useRef({ id: null, overId: null, startX: 0, startY: 0, dragging: false })
   const editTodoRef = useRef(null)
   const prevTodoIdsRef = useRef(null)
   const { addToast, ToastContainer } = useToast()
@@ -105,26 +105,7 @@ export default function ProjectDetail({ project, onBack }) {
   }
 
   async function deleteTodo(id) {
-    const todo = todos.find(t => t.id === id)
     await deleteDoc(doc(db, 'todos', id))
-    if (todo) {
-      addToast('항목이 삭제되었습니다', {
-        icon: '🗑️',
-        duration: 5000,
-        action: {
-          label: '되돌리기',
-          fn: () => addDoc(collection(db, 'todos'), {
-            projectId: todo.projectId,
-            text: todo.text,
-            done: todo.done,
-            category: todo.category || '기타',
-            author: todo.author || '',
-            order: todo.order ?? 0,
-            createdAt: todo.createdAt,
-          }),
-        },
-      })
-    }
   }
 
   function startEditTodo(todo) {
@@ -159,8 +140,15 @@ export default function ProjectDetail({ project, onBack }) {
     if (!el) return
     function onTouchMove(e) {
       if (!touchDragRef.current.id) return
-      e.preventDefault()
       const touch = e.touches[0]
+      const dx = Math.abs(touch.clientX - touchDragRef.current.startX)
+      const dy = Math.abs(touch.clientY - touchDragRef.current.startY)
+      if (!touchDragRef.current.dragging && dx < 6 && dy < 6) return
+      e.preventDefault()
+      if (!touchDragRef.current.dragging) {
+        touchDragRef.current.dragging = true
+        setDraggedId(touchDragRef.current.id)
+      }
       const items = el.querySelectorAll('[data-todoid]')
       let found = null
       for (const item of items) {
@@ -177,11 +165,11 @@ export default function ProjectDetail({ project, onBack }) {
       }
     }
     function onTouchEnd() {
-      const { id: fromId, overId: toId } = touchDragRef.current
-      touchDragRef.current = { id: null, overId: null }
+      const { id: fromId, overId: toId, dragging } = touchDragRef.current
+      touchDragRef.current = { id: null, overId: null, startX: 0, startY: 0, dragging: false }
       setDraggedId(null)
       setDragOverId(null)
-      if (!fromId || !toId || fromId === toId) return
+      if (!dragging || !fromId || !toId || fromId === toId) return
       setTodos(prev => {
         const fromIdx = prev.findIndex(t => t.id === fromId)
         const toIdx = prev.findIndex(t => t.id === toId)
@@ -459,9 +447,6 @@ export default function ProjectDetail({ project, onBack }) {
               <div
                 key={todo.id}
                 data-todoid={todo.id}
-                draggable={!isEditing}
-                onTouchStart={() => { touchDragRef.current.id = todo.id; setDraggedId(todo.id) }}
-                onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedId(todo.id) }}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(todo.id) }}
                 onDrop={(e) => { e.preventDefault(); handleDrop(todo.id) }}
                 onDragEnd={resetDrag}
@@ -473,21 +458,36 @@ export default function ProjectDetail({ project, onBack }) {
                   isDragOver ? 'border-t-2 border-indigo-400' : ''
                 }`}
               >
-                {/* Checkbox */}
-                <button
-                  onClick={() => !isEditing && toggleDone(todo)}
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition mt-0.5 ${
-                    todo.done
-                      ? 'bg-indigo-500 border-indigo-500'
-                      : 'border-gray-300 hover:border-indigo-400'
-                  }`}
+                {/* 드래그 핸들: 체크박스 + 카테고리 */}
+                <div
+                  draggable={!isEditing}
+                  onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedId(todo.id) }}
+                  onTouchStart={(e) => {
+                    if (isEditing) return
+                    touchDragRef.current = { id: todo.id, overId: null, startX: e.touches[0].clientX, startY: e.touches[0].clientY, dragging: false }
+                  }}
+                  className={`flex items-center gap-2 shrink-0 ${isEditing ? '' : 'cursor-grab active:cursor-grabbing'}`}
                 >
-                  {todo.done && (
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
+                  <button
+                    onClick={() => !isEditing && toggleDone(todo)}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition mt-0.5 ${
+                      todo.done
+                        ? 'bg-indigo-500 border-indigo-500'
+                        : 'border-gray-300 hover:border-indigo-400'
+                    }`}
+                  >
+                    {todo.done && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                  {!isEditing && (
+                    <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
+                      {todo.category || '기타'}
+                    </span>
                   )}
-                </button>
+                </div>
 
                 {isEditing ? (
                   /* ── 수정 모드: 카테고리 + 작성자 + 텍스트 세로 배열 ── */
@@ -544,9 +544,6 @@ export default function ProjectDetail({ project, onBack }) {
                 ) : (
                   /* ── 일반 모드 ── */
                   <>
-                    <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
-                      {todo.category || '기타'}
-                    </span>
                     <p className={`flex-1 text-sm leading-snug break-all ${
                       todo.done ? 'line-through text-gray-400' : 'text-gray-800'
                     }`}>
