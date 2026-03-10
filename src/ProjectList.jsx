@@ -714,19 +714,21 @@ ${projectBlocks}
                   setShowCraft(true)
                   setTimeout(() => setShowCraft(false), 3000)
                 }}
-                className="flex flex-col items-center border-2 rounded px-2 py-1 cursor-pointer active:scale-95 transition"
+                className="flex flex-col items-center justify-center border-2 rounded cursor-pointer active:scale-95 transition"
                 style={{
                   borderColor: '#E8694A',
                   fontFamily: "'JetBrains Mono', monospace",
                   color: '#E8694A',
                   backgroundColor: '#fff7f5',
                   lineHeight: 1,
+                  padding: '5px 8px',
                   gap: 0,
+                  textAlign: 'center',
                 }}
               >
-                <span className="font-bold text-[11px] uppercase" style={{ letterSpacing: '0.28em' }}>TODO</span>
-                <div className="w-full my-[3px]" style={{ height: '1px', backgroundColor: '#E8694A', opacity: 0.6 }} />
-                <span className="font-bold text-[11px] uppercase" style={{ letterSpacing: '0.28em' }}>LIST</span>
+                <span className="font-bold uppercase block" style={{ fontSize: '10px', letterSpacing: '0.3em', paddingRight: '0px' }}>TODO</span>
+                <div style={{ width: '100%', height: '1px', backgroundColor: '#E8694A', opacity: 0.6, margin: '3px 0' }} />
+                <span className="font-bold uppercase block" style={{ fontSize: '10px', letterSpacing: '0.3em' }}>LIST</span>
               </div>
               {showCraft && (
                 <div
