@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { getAuthorClass } from './authorConfig'
+import { getAuthorClass, getAuthorPhone } from './authorConfig'
 import {
   collection,
   addDoc,
@@ -124,6 +124,47 @@ function WeekCalendar() {
 
   return (
     <>
+      {/* 전화 확인 모달 */}
+      {callTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setCallTarget(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 min-w-[260px]"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1.15rem', letterSpacing: '-0.01em' }}>
+              Call this number?
+            </p>
+            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1rem' }}>
+              {callTarget.name}
+            </p>
+            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1.05rem', letterSpacing: '0.05em' }}>
+              {callTarget.phone}
+            </p>
+            <div className="flex gap-3 mt-1 w-full">
+              <button
+                onClick={() => setCallTarget(null)}
+                className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Cancel
+              </button>
+              <a
+                href={`tel:${callTarget.phone.replace(/-/g, '')}`}
+                onClick={() => setCallTarget(null)}
+                className="flex-1 py-2 rounded-xl text-white text-sm text-center"
+                style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Call
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-white rounded-lg border border-gray-100 px-4 pt-3 pb-4">
         <div className="flex items-center justify-between mb-3">
           <button
@@ -215,6 +256,7 @@ function formatFileName(name) {
 }
 
 export default function ProjectList({ onSelectProject }) {
+  const [callTarget, setCallTarget] = useState(null) // { name, phone }
   const [projects, setProjects] = useState([])
   const [todos, setTodos] = useState([])
   const [notices, setNotices] = useState([])
@@ -1017,11 +1059,25 @@ ${projectBlocks}
                             {todo.category === '중요' && <span className="text-amber-400 font-bold mr-0.5">★</span>}
                             {todo.text}
                           </p>
-                          {todo.author && (
-                            <span className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
-                              {todo.author}
-                            </span>
-                          )}
+                          {todo.author && (() => {
+                            const phone = getAuthorPhone(todo.author)
+                            return phone ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setCallTarget({ name: todo.author, phone })
+                                }}
+                                className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)} active:opacity-70 transition`}
+                                title={`${todo.author} 에게 전화`}
+                              >
+                                {todo.author}
+                              </button>
+                            ) : (
+                              <span className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
+                                {todo.author}
+                              </span>
+                            )
+                          })()}
                         </div>
                       )
                     })}
