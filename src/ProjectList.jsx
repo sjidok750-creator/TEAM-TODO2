@@ -174,6 +174,7 @@ export default function ProjectList({ onSelectProject }) {
   const [editingDate, setEditingDate] = useState('')
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [showYearPicker, setShowYearPicker] = useState(false)
+  const [showCraft, setShowCraft] = useState(false)
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
   const pullRef = useRef({ startY: 0, pulling: false })
@@ -706,20 +707,42 @@ ${projectBlocks}
         <div className="px-4 py-2.5 max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* TODO LIST 도장 배지 */}
-            <div
-              className="flex flex-col items-center border-2 rounded px-2 py-1 shrink-0"
-              style={{
-                borderColor: '#E8694A',
-                fontFamily: "'JetBrains Mono', monospace",
-                color: '#E8694A',
-                backgroundColor: '#fff7f5',
-                lineHeight: 1,
-                gap: 0,
-              }}
-            >
-              <span className="font-bold tracking-[0.25em] text-[11px] uppercase" style={{ letterSpacing: '0.28em' }}>TODO</span>
-              <div className="w-full my-[3px]" style={{ height: '1px', backgroundColor: '#E8694A', opacity: 0.6 }} />
-              <span className="font-bold tracking-[0.25em] text-[11px] uppercase" style={{ letterSpacing: '0.28em' }}>LIST</span>
+            <div className="relative shrink-0">
+              <div
+                onClick={() => {
+                  if (showCraft) return
+                  setShowCraft(true)
+                  setTimeout(() => setShowCraft(false), 3000)
+                }}
+                className="flex flex-col items-center border-2 rounded px-2 py-1 cursor-pointer active:scale-95 transition"
+                style={{
+                  borderColor: '#E8694A',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  color: '#E8694A',
+                  backgroundColor: '#fff7f5',
+                  lineHeight: 1,
+                  gap: 0,
+                }}
+              >
+                <span className="font-bold text-[11px] uppercase" style={{ letterSpacing: '0.28em' }}>TODO</span>
+                <div className="w-full my-[3px]" style={{ height: '1px', backgroundColor: '#E8694A', opacity: 0.6 }} />
+                <span className="font-bold text-[11px] uppercase" style={{ letterSpacing: '0.28em' }}>LIST</span>
+              </div>
+              {showCraft && (
+                <div
+                  className="absolute left-0 top-full mt-1.5 whitespace-nowrap rounded px-2.5 py-1 z-20"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    color: '#E8694A',
+                    fontSize: '12px',
+                    border: '2px solid #E8694A',
+                    backgroundColor: '#f3f4f6',
+                    animation: 'craftFadeInOut 3s ease forwards',
+                  }}
+                >
+                  Crafted by Lee Sang Kuk
+                </div>
+              )}
             </div>
             {(() => {
               const d = new Date()
