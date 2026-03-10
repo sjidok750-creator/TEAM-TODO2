@@ -500,8 +500,10 @@ export default function ProjectList({ onSelectProject }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 mb-3">
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ color: '#E8694A' }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3L22 21H2L12 3Z" fill="#E8694A"/>
+                <path d="M12 9.5V15" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                <circle cx="12" cy="18" r="1.1" fill="white"/>
               </svg>
               <p className="text-sm font-bold text-gray-800">공지사항</p>
             </div>
@@ -549,8 +551,10 @@ export default function ProjectList({ onSelectProject }) {
                   className="cursor-pointer flex items-center gap-1 leading-5 hover:text-indigo-600 transition min-w-0"
                   title={notice.text}
                 >
-                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ color: '#E8694A' }}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 3L22 21H2L12 3Z" fill="#E8694A"/>
+                    <path d="M12 9.5V15" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                    <circle cx="12" cy="18" r="1.1" fill="white"/>
                   </svg>
                   <span className="text-xs text-gray-700 truncate">{notice.text}</span>
                 </div>
