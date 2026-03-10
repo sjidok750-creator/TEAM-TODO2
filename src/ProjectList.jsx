@@ -11,8 +11,7 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { db, storage } from './firebase'
+import { db } from './firebase'
 
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
@@ -343,20 +342,29 @@ export default function ProjectList({ onSelectProject }) {
   async function handleFileUpload(e) {
     const file = e.target.files[0]
     if (!file) return
+    if (file.size > 750 * 1024) {
+      alert('파일 크기는 750KB 이하만 업로드할 수 있습니다.')
+      setFileInputKey(k => k + 1)
+      return
+    }
     setUploading(true)
     try {
-      const storageRef = ref(storage, `sharedFiles/${Date.now()}_${file.name}`)
-      await uploadBytes(storageRef, file)
-      const url = await getDownloadURL(storageRef)
+      const data = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
       await addDoc(collection(db, 'sharedFiles'), {
         name: file.name,
-        storagePath: storageRef.fullPath,
-        url,
+        data,
+        size: file.size,
+        type: file.type,
         createdAt: serverTimestamp(),
       })
     } catch (err) {
       console.error('파일 업로드 실패:', err)
-      alert('파일 업로드에 실패했습니다. Firebase Storage 설정을 확인하세요.')
+      alert('파일 업로드에 실패했습니다.')
     } finally {
       setUploading(false)
       setFileInputKey(k => k + 1)
@@ -364,12 +372,6 @@ export default function ProjectList({ onSelectProject }) {
   }
 
   async function deleteSharedFile(file) {
-    try {
-      const storageRef = ref(storage, file.storagePath)
-      await deleteObject(storageRef)
-    } catch (err) {
-      console.warn('Storage 파일 삭제 실패:', err)
-    }
     await deleteDoc(doc(db, 'sharedFiles', file.id))
   }
 
@@ -673,9 +675,8 @@ ${projectBlocks}
                 className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-xs"
               >
                 <a
-                  href={file.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={file.data || file.url}
+                  download={file.name}
                   className="text-gray-700 hover:text-indigo-600 transition"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -851,11 +852,6 @@ ${projectBlocks}
               className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2.5 py-1 hover:bg-orange-100 transition active:scale-95"
               title="WIP 현황을 PDF로 내보내기"
             >
-              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-                <path d="M12 3L22 21H2L12 3Z" fill="#E8694A"/>
-                <path d="M12 9.5V15" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                <circle cx="12" cy="18" r="1.1" fill="white"/>
-              </svg>
               W.I.P PDF
             </button>
           </div>
