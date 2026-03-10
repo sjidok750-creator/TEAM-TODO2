@@ -40,13 +40,14 @@ function MonthCalendarModal({ onClose }) {
 
   const firstDay = new Date(viewYear, viewMonth, 1)
   const lastDay = new Date(viewYear, viewMonth + 1, 0)
-  const startDow = firstDay.getDay() // 0=Sun
+  const startDow = firstDay.getDay()
 
   const cells = []
   for (let i = 0; i < startDow; i++) cells.push(null)
   for (let d = 1; d <= lastDay.getDate(); d++) cells.push(d)
 
-  const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']
+  const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+  const mono = { fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }
 
   function prevMonth() {
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
@@ -61,21 +62,25 @@ function MonthCalendarModal({ onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl p-5 w-80" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 transition active:scale-95">
-            <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-orange-50 transition active:scale-95">
+            <svg className="w-4 h-4" style={{ color: '#E8694A' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <span className="text-sm font-bold text-gray-800">{viewYear}년 {monthNames[viewMonth]}</span>
-          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 transition active:scale-95">
-            <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <span className="text-sm font-bold" style={mono}>{viewYear} {monthNames[viewMonth]}</span>
+          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-orange-50 transition active:scale-95">
+            <svg className="w-4 h-4" style={{ color: '#E8694A' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
         <div className="grid grid-cols-7 mb-1">
-          {['일','월','화','수','목','금','토'].map((d, i) => (
-            <div key={d} className={`text-center text-[11px] font-semibold py-1 ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-gray-400'}`}>{d}</div>
+          {['SUN','MON','TUE','WED','THU','FRI','SAT'].map((d, i) => (
+            <div
+              key={d}
+              className="text-center text-[9px] font-semibold py-1"
+              style={{ fontFamily: "'JetBrains Mono', monospace", color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : '#E8694A' }}
+            >{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-y-0.5">
@@ -86,12 +91,15 @@ function MonthCalendarModal({ onClose }) {
             const holiday = isHoliday(viewYear, viewMonth, day)
             const isSun = dow === 0
             const isSat = dow === 6
-            const textColor = isToday ? 'text-white' : holiday || isSun ? 'text-red-500' : isSat ? 'text-blue-500' : 'text-gray-700'
+            let txtColor = '#E8694A'
+            if (isToday) txtColor = 'white'
+            else if (holiday || isSun) txtColor = '#ef4444'
+            else if (isSat) txtColor = '#3b82f6'
             return (
               <div key={i} className="flex flex-col items-center py-0.5">
                 <span
-                  className={`w-8 h-8 flex items-center justify-center rounded-full text-xs font-medium ${textColor} ${isToday ? 'font-bold' : ''}`}
-                  style={isToday ? { backgroundColor: '#E8694A' } : {}}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full text-xs ${isToday ? 'font-bold' : 'font-medium'}`}
+                  style={{ fontFamily: "'JetBrains Mono', monospace", color: txtColor, backgroundColor: isToday ? '#E8694A' : 'transparent' }}
                 >
                   {day}
                 </span>
@@ -100,9 +108,13 @@ function MonthCalendarModal({ onClose }) {
             )
           })}
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-3 text-[11px] text-gray-400">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block"/> 공휴일</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{backgroundColor:'#E8694A'}}/> 오늘</span>
+        <div className="mt-3 pt-3 border-t border-orange-100 flex items-center gap-3">
+          <span className="flex items-center gap-1 text-[11px]" style={mono}>
+            <span className="w-2 h-2 rounded-full bg-red-400 inline-block"/> HOLIDAY
+          </span>
+          <span className="flex items-center gap-1 text-[11px]" style={mono}>
+            <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: '#E8694A' }}/> TODAY
+          </span>
         </div>
       </div>
     </div>
@@ -114,6 +126,15 @@ const CATEGORY_CONFIG = {
   '내업': { color: 'text-blue-600' },
   '중요': { color: 'text-amber-500' },
   '기타': { color: 'text-green-600' },
+}
+
+function getItemYear(item) {
+  if (item.year) return item.year
+  const ts = item.createdAt
+  if (!ts) return new Date().getFullYear()
+  if (typeof ts.toDate === 'function') return ts.toDate().getFullYear()
+  if (ts.seconds) return new Date(ts.seconds * 1000).getFullYear()
+  return new Date().getFullYear()
 }
 
 function formatFileName(name) {
@@ -151,6 +172,8 @@ export default function ProjectList({ onSelectProject }) {
   const [viewingFile, setViewingFile] = useState(null)
   const [viewingFileId, setViewingFileId] = useState(null)
   const [editingDate, setEditingDate] = useState('')
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [showYearPicker, setShowYearPicker] = useState(false)
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
   const pullRef = useRef({ startY: 0, pulling: false })
@@ -176,6 +199,13 @@ export default function ProjectList({ onSelectProject }) {
     document.addEventListener('click', closeMenu)
     return () => document.removeEventListener('click', closeMenu)
   }, [openMenuId, closeMenu])
+
+  const closeYearPicker = useCallback(() => setShowYearPicker(false), [])
+  useEffect(() => {
+    if (!showYearPicker) return
+    document.addEventListener('click', closeYearPicker)
+    return () => document.removeEventListener('click', closeYearPicker)
+  }, [showYearPicker, closeYearPicker])
 
   useEffect(() => {
     if (showAddModal) setTimeout(() => addInputRef.current?.focus(), 50)
@@ -232,6 +262,7 @@ export default function ProjectList({ onSelectProject }) {
     await addDoc(collection(db, 'projects'), {
       name,
       completionDate: completionDate.trim() || null,
+      year: selectedYear,
       createdAt: serverTimestamp(),
     })
   }
@@ -306,7 +337,7 @@ export default function ProjectList({ onSelectProject }) {
     if (!text) return
     setNoticeText('')
     setShowNoticeModal(false)
-    await addDoc(collection(db, 'notices'), { text, createdAt: serverTimestamp() })
+    await addDoc(collection(db, 'notices'), { text, year: selectedYear, createdAt: serverTimestamp() })
   }
 
   async function deleteNotice(notice) {
@@ -351,6 +382,7 @@ export default function ProjectList({ onSelectProject }) {
           data: dataUrl,
           size: file.size,
           type: file.type,
+          year: selectedYear,
           createdAt: serverTimestamp(),
         })
       } else {
@@ -365,6 +397,7 @@ export default function ProjectList({ onSelectProject }) {
           chunkCount: chunks.length,
           size: file.size,
           type: file.type,
+          year: selectedYear,
           createdAt: serverTimestamp(),
         })
         await Promise.all(
@@ -461,6 +494,10 @@ export default function ProjectList({ onSelectProject }) {
     a.click()
   }
 
+  const filteredProjects = projects.filter(p => getItemYear(p) === selectedYear)
+  const filteredNotices = notices.filter(n => getItemYear(n) === selectedYear)
+  const filteredFiles = sharedFiles.filter(f => getItemYear(f) === selectedYear)
+
   function handleExportPDF() {
     const now = new Date()
     const month = now.getMonth() + 1
@@ -483,7 +520,7 @@ export default function ProjectList({ onSelectProject }) {
       '권여린': { text: '#db2777', bg: '#fdf2f8', border: '#f9a8d4' },
     }
 
-    const projectBlocks = projects.map((project, idx) => {
+    const projectBlocks = filteredProjects.map((project, idx) => {
       const ptodos = getProjectTodos(project.id)
       const total = ptodos.length
       const done = ptodos.filter(t => t.done).length
@@ -552,7 +589,7 @@ export default function ProjectList({ onSelectProject }) {
 <div id="content">
 <div style="text-align:center;padding-bottom:10px;border-bottom:2.5px solid #111;margin-bottom:12px;">
   <div style="font-size:14pt;font-weight:700;letter-spacing:1px;margin-bottom:3px;">${month}월 과업진행현황(W.I.P)</div>
-  <div style="font-size:8pt;color:#666;">출력일: ${dateStr} &nbsp;|&nbsp; 총 ${projects.length}건</div>
+  <div style="font-size:8pt;color:#666;">출력일: ${dateStr} &nbsp;|&nbsp; 총 ${filteredProjects.length}건</div>
 </div>
 ${projectBlocks}
 <div style="margin-top:14px;padding-top:6px;border-top:1px solid #d1d5db;font-size:7.5pt;color:#9ca3af;text-align:right;">* 본 문서는 팀 투두 시스템에서 자동 생성되었습니다</div>
@@ -675,7 +712,7 @@ ${projectBlocks}
               const d = new Date()
               const mm = String(d.getMonth() + 1).padStart(2, '0')
               const dd = String(d.getDate()).padStart(2, '0')
-              const dayNames = ['일','월','화','수','목','금','토']
+              const dayNames = ['SUN','MON','TUE','WED','THU','FRI','SAT']
               return (
                 <span className="text-sm font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }}>
                   {mm}/{dd}({dayNames[d.getDay()]})
@@ -693,6 +730,39 @@ ${projectBlocks}
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>
               </svg>
             </button>
+            {/* 년도 선택기 */}
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setShowYearPicker(v => !v)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 transition active:scale-95"
+                style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A', fontSize: '0.8rem', fontWeight: 700 }}
+                title="년도 선택"
+              >
+                {selectedYear}
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showYearPicker && (
+                <div className="absolute left-0 top-9 bg-white border border-orange-200 rounded-xl shadow-lg z-20 overflow-hidden min-w-[72px]">
+                  {Array.from({ length: 5 }, (_, i) => 2026 + i).map(yr => (
+                    <button
+                      key={yr}
+                      onClick={() => { setSelectedYear(yr); setShowYearPicker(false) }}
+                      className="w-full text-center px-4 py-2 text-sm hover:bg-orange-50 transition active:bg-orange-100"
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        color: '#E8694A',
+                        fontWeight: yr === selectedYear ? 700 : 400,
+                        background: yr === selectedYear ? '#fff7ed' : undefined,
+                      }}
+                    >
+                      {yr}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
@@ -923,10 +993,10 @@ ${projectBlocks}
               공지사항
             </button>
             <div className="flex-1 min-w-0 space-y-0.5">
-              {notices.length === 0 && (
+              {filteredNotices.length === 0 && (
                 <p className="text-xs text-gray-400 py-0.5">+추가를 클릭하세요</p>
               )}
-              {notices.map((notice) => (
+              {filteredNotices.map((notice) => (
                 <div
                   key={notice.id}
                   onClick={() => { setViewNotice(notice); setEditNoticeText(notice.text) }}
@@ -958,7 +1028,7 @@ ${projectBlocks}
                 disabled={uploading}
               />
             </label>
-            {sharedFiles.map((file) => (
+            {filteredFiles.map((file) => (
               <div
                 key={file.id}
                 className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-xs"
@@ -994,19 +1064,19 @@ ${projectBlocks}
             {loading && (
               <div className="text-center py-12 text-gray-400 text-sm">불러오는 중...</div>
             )}
-            {!loading && projects.length === 0 && (
+            {!loading && filteredProjects.length === 0 && (
               <div className="text-center py-16 text-gray-400">
-                <p className="text-sm">용역을 추가하면 여기에 표시됩니다</p>
+                <p className="text-sm">{selectedYear}년 용역을 추가하면 여기에 표시됩니다</p>
               </div>
             )}
-            {projects.map((project) => {
+            {filteredProjects.map((project) => {
               const projectTodos = getProjectTodos(project.id)
               const total = projectTodos.length
               const done = projectTodos.filter((t) => t.done).length
               const pct = total ? Math.round((done / total) * 100) : 0
               const isEditing = editingProjectId === project.id
               const isClosed = !!project.closed
-              const activeProjects = projects.filter(p => !p.closed)
+              const activeProjects = filteredProjects.filter(p => !p.closed)
               const projIdx = activeProjects.findIndex(p => p.id === project.id)
 
               const menuStyle = { fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }
