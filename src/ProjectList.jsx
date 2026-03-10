@@ -931,7 +931,7 @@ ${projectBlocks}
                   <path d="M12 9.5V15" stroke="white" strokeWidth="2" strokeLinecap="round"/>
                   <circle cx="12" cy="18" r="1.1" fill="white"/>
                 </svg>
-                <p className="text-sm font-bold" style={monoOrange}>공지사항</p>
+                <p className="text-sm font-bold" style={monoOrange}>Notice</p>
               </div>
               <textarea
                 autoFocus
@@ -942,11 +942,11 @@ ${projectBlocks}
               />
               <div className="flex gap-2">
                 <button
-                  onClick={() => setConfirmDialog({ message: '공지를 삭제하시겠습니까?', onConfirm: () => deleteNotice(viewNotice) })}
+                  onClick={() => setConfirmDialog({ message: 'Delete this notice?', cancelLabel: 'No', confirmLabel: 'Yes', onConfirm: () => deleteNotice(viewNotice) })}
                   className="flex-1 py-2.5 rounded-xl text-sm border border-current transition active:scale-95 hover:bg-orange-50"
                   style={monoOrange}
                 >
-                  삭제
+                  Delete
                 </button>
                 {noticeModified ? (
                   <button
@@ -954,7 +954,7 @@ ${projectBlocks}
                     className="flex-1 py-2.5 rounded-xl text-sm text-white transition active:scale-95"
                     style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
                   >
-                    수정
+                    Save
                   </button>
                 ) : (
                   <button
@@ -962,7 +962,7 @@ ${projectBlocks}
                     className="flex-1 py-2.5 rounded-xl text-sm border border-current transition active:scale-95 hover:bg-orange-50"
                     style={monoOrange}
                   >
-                    닫기
+                    Close
                   </button>
                 )}
               </div>
