@@ -1,5 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { getAuthorClass } from './authorConfig'
+import {
+  collection,
+  addDoc,
+  deleteDoc,
+  updateDoc,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  query,
+  orderBy,
+} from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
+import { db, storage } from './firebase'
 
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
@@ -184,19 +197,6 @@ function WeekCalendar() {
   )
 }
 
-import {
-  collection,
-  addDoc,
-  deleteDoc,
-  updateDoc,
-  doc,
-  onSnapshot,
-  serverTimestamp,
-  query,
-  orderBy,
-} from 'firebase/firestore'
-import { db } from './firebase'
-
 const CATEGORY_CONFIG = {
   '외업': { color: 'text-red-600' },
   '내업': { color: 'text-blue-600' },
@@ -204,17 +204,35 @@ const CATEGORY_CONFIG = {
   '기타': { color: 'text-green-600' },
 }
 
+function formatFileName(name) {
+  const lastDot = name.lastIndexOf('.')
+  if (lastDot === -1) {
+    return name.length > 4 ? name.slice(0, 4) + '...' : name
+  }
+  const base = name.slice(0, lastDot)
+  const ext = name.slice(lastDot + 1)
+  return base.slice(0, 4) + '...' + ext
+}
+
 export default function ProjectList({ onSelectProject }) {
   const [projects, setProjects] = useState([])
   const [todos, setTodos] = useState([])
+  const [notices, setNotices] = useState([])
+  const [sharedFiles, setSharedFiles] = useState([])
   const [input, setInput] = useState('')
+  const [completionDate, setCompletionDate] = useState('')
   const [loading, setLoading] = useState(true)
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showNoticeModal, setShowNoticeModal] = useState(false)
+  const [noticeText, setNoticeText] = useState('')
+  const [viewNotice, setViewNotice] = useState(null)
+  const [uploading, setUploading] = useState(false)
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   const closeMenu = useCallback(() => setOpenMenuId(null), [])
   useEffect(() => {
@@ -244,6 +262,22 @@ export default function ProjectList({ onSelectProject }) {
   }, [])
 
   useEffect(() => {
+    const q = query(collection(db, 'notices'), orderBy('createdAt', 'asc'))
+    const unsub = onSnapshot(q, (snap) => {
+      setNotices(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    })
+    return unsub
+  }, [])
+
+  useEffect(() => {
+    const q = query(collection(db, 'sharedFiles'), orderBy('createdAt', 'asc'))
+    const unsub = onSnapshot(q, (snap) => {
+      setSharedFiles(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    })
+    return unsub
+  }, [])
+
+  useEffect(() => {
     if (editingProjectId) editNameRef.current?.focus()
   }, [editingProjectId])
 
@@ -251,9 +285,11 @@ export default function ProjectList({ onSelectProject }) {
     const name = input.trim()
     if (!name) return
     setInput('')
+    setCompletionDate('')
     setShowAddModal(false)
     await addDoc(collection(db, 'projects'), {
       name,
+      completionDate: completionDate.trim() || null,
       createdAt: serverTimestamp(),
     })
   }
@@ -284,7 +320,57 @@ export default function ProjectList({ onSelectProject }) {
   function getProjectTodos(projectId) {
     return todos
       .filter((t) => t.projectId === projectId)
-      .sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0))
+      .sort((a, b) => {
+        const aOrder = a.order ?? a.createdAt?.toMillis?.() ?? 0
+        const bOrder = b.order ?? b.createdAt?.toMillis?.() ?? 0
+        return aOrder - bOrder
+      })
+  }
+
+  async function addNotice() {
+    const text = noticeText.trim()
+    if (!text) return
+    setNoticeText('')
+    setShowNoticeModal(false)
+    await addDoc(collection(db, 'notices'), { text, createdAt: serverTimestamp() })
+  }
+
+  async function deleteNotice(notice) {
+    await deleteDoc(doc(db, 'notices', notice.id))
+    setViewNotice(null)
+  }
+
+  async function handleFileUpload(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const storageRef = ref(storage, `sharedFiles/${Date.now()}_${file.name}`)
+      await uploadBytes(storageRef, file)
+      const url = await getDownloadURL(storageRef)
+      await addDoc(collection(db, 'sharedFiles'), {
+        name: file.name,
+        storagePath: storageRef.fullPath,
+        url,
+        createdAt: serverTimestamp(),
+      })
+    } catch (err) {
+      console.error('파일 업로드 실패:', err)
+      alert('파일 업로드에 실패했습니다. Firebase Storage 설정을 확인하세요.')
+    } finally {
+      setUploading(false)
+      if (e.target) e.target.value = ''
+    }
+  }
+
+  async function deleteSharedFile(file) {
+    try {
+      const storageRef = ref(storage, file.storagePath)
+      await deleteObject(storageRef)
+    } catch (err) {
+      console.warn('Storage 파일 삭제 실패:', err)
+    }
+    await deleteDoc(doc(db, 'sharedFiles', file.id))
   }
 
   return (
@@ -311,7 +397,7 @@ export default function ProjectList({ onSelectProject }) {
       {showAddModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => { setShowAddModal(false); setInput('') }}
+          onClick={() => { setShowAddModal(false); setInput(''); setCompletionDate('') }}
         >
           <div
             className="bg-white rounded-2xl shadow-xl p-5 w-80"
@@ -325,15 +411,28 @@ export default function ProjectList({ onSelectProject }) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') addProject()
-                if (e.key === 'Escape') { setShowAddModal(false); setInput('') }
+                if (e.key === 'Escape') { setShowAddModal(false); setInput(''); setCompletionDate('') }
               }}
               placeholder="용역명을 입력하세요..."
               className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition mb-3"
               maxLength={150}
             />
+            <label className="block text-xs font-medium text-gray-500 mb-1">준공일 (YY/MM/DD)</label>
+            <input
+              type="text"
+              value={completionDate}
+              onChange={(e) => setCompletionDate(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') addProject()
+                if (e.key === 'Escape') { setShowAddModal(false); setInput(''); setCompletionDate('') }
+              }}
+              placeholder="예: 26/12/31"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition mb-4"
+              maxLength={8}
+            />
             <div className="flex gap-2">
               <button
-                onClick={() => { setShowAddModal(false); setInput('') }}
+                onClick={() => { setShowAddModal(false); setInput(''); setCompletionDate('') }}
                 className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 transition active:scale-95"
               >
                 취소
@@ -350,9 +449,148 @@ export default function ProjectList({ onSelectProject }) {
         </div>
       )}
 
+      {/* Add Notice Modal */}
+      {showNoticeModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => { setShowNoticeModal(false); setNoticeText('') }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl p-5 w-80"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-bold text-gray-800 mb-3">공지사항 추가</p>
+            <textarea
+              value={noticeText}
+              onChange={(e) => setNoticeText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') { setShowNoticeModal(false); setNoticeText('') }
+              }}
+              placeholder="공지사항을 입력하세요..."
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none h-28 transition mb-3"
+              autoFocus
+              maxLength={500}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowNoticeModal(false); setNoticeText('') }}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 transition active:scale-95"
+              >
+                취소
+              </button>
+              <button
+                onClick={addNotice}
+                disabled={!noticeText.trim()}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed transition active:scale-95"
+              >
+                추가
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Notice Modal */}
+      {viewNotice && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setViewNotice(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl p-5 w-80 max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-bold text-gray-800 mb-3">공지사항</p>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mb-5">{viewNotice.text}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setViewNotice(null)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 transition active:scale-95"
+              >
+                닫기
+              </button>
+              <button
+                onClick={() => deleteNotice(viewNotice)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition active:scale-95"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
         {/* Week Calendar */}
         <WeekCalendar />
+
+        {/* 공지사항 + 공유파일 */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          {/* 공지사항 row */}
+          <div className="flex items-start gap-2 px-3 py-2 border-b border-gray-100">
+            <button
+              onClick={() => setShowNoticeModal(true)}
+              className="shrink-0 text-xs font-bold text-gray-700 bg-gray-100 border border-gray-300 rounded px-2 py-0.5 hover:bg-gray-200 transition whitespace-nowrap mt-0.5"
+            >
+              공지사항
+            </button>
+            <div className="flex-1 min-w-0 space-y-0.5">
+              {notices.length === 0 && (
+                <p className="text-xs text-gray-400 py-0.5">+추가를 클릭하세요</p>
+              )}
+              {notices.map((notice) => (
+                <div
+                  key={notice.id}
+                  onClick={() => setViewNotice(notice)}
+                  className="cursor-pointer text-xs text-gray-700 truncate leading-5 hover:text-indigo-600 transition"
+                  title={notice.text}
+                >
+                  {notice.text}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 공유파일 row */}
+          <div className="flex items-center gap-2 px-3 py-2 flex-wrap">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="shrink-0 text-xs font-bold text-gray-700 bg-gray-100 border border-gray-300 rounded px-2 py-0.5 hover:bg-gray-200 transition whitespace-nowrap disabled:opacity-50"
+            >
+              {uploading ? '업로드중...' : '공유파일'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            {sharedFiles.map((file) => (
+              <div
+                key={file.id}
+                className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-xs"
+              >
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-700 hover:text-indigo-600 transition"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {formatFileName(file.name)}
+                </a>
+                <button
+                  onClick={() => deleteSharedFile(file)}
+                  className="text-gray-300 hover:text-red-400 transition shrink-0 leading-none"
+                  title="삭제"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Project list */}
         <div>
@@ -399,9 +637,16 @@ export default function ProjectList({ onSelectProject }) {
                       maxLength={150}
                     />
                   ) : (
-                    <p className="text-sm font-bold text-gray-800 leading-snug break-words">
-                      용역명 : {project.name}
-                    </p>
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <p className="text-sm font-bold text-gray-800 leading-snug break-words">
+                        용역명 : {project.name}
+                      </p>
+                      {project.completionDate && (
+                        <span className="text-xs font-medium text-gray-400 shrink-0">
+                          준공: {project.completionDate}
+                        </span>
+                      )}
+                    </div>
                   )}
 
                   {/* TODO 목록 */}

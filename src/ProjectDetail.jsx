@@ -41,6 +41,8 @@ export default function ProjectDetail({ project, onBack }) {
   const [loading, setLoading] = useState(true)
   const [editingTodoId, setEditingTodoId] = useState(null)
   const [editingText, setEditingText] = useState('')
+  const [draggedId, setDraggedId] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
   const inputRef = useRef(null)
   const editTodoRef = useRef(null)
   const prevTodoIdsRef = useRef(null)
@@ -52,11 +54,10 @@ export default function ProjectDetail({ project, onBack }) {
       const projectTodos = all
         .filter((t) => t.projectId === project.id)
         .sort((a, b) => {
-          const aTime = a.createdAt?.toMillis?.() ?? 0
-          const bTime = b.createdAt?.toMillis?.() ?? 0
-          return aTime - bTime
+          const aOrder = a.order ?? a.createdAt?.toMillis?.() ?? 0
+          const bOrder = b.order ?? b.createdAt?.toMillis?.() ?? 0
+          return aOrder - bOrder
         })
-      // 알림: 초기 로드 이후 타인이 추가한 항목 감지
       if (prevTodoIdsRef.current !== null) {
         const prevIds = prevTodoIdsRef.current
         const newItems = projectTodos.filter((t) => !prevIds.has(t.id))
@@ -79,6 +80,9 @@ export default function ProjectDetail({ project, onBack }) {
     if (!text) return
     setInput('')
     localStorage.setItem('team-todo-author', author)
+    const nextOrder = todos.length > 0
+      ? Math.max(...todos.map(t => t.order ?? t.createdAt?.toMillis?.() ?? 0)) + 1000
+      : 0
     await addDoc(collection(db, 'todos'), {
       projectId: project.id,
       text,
@@ -86,6 +90,7 @@ export default function ProjectDetail({ project, onBack }) {
       category,
       author: author.trim() || '익명',
       createdAt: serverTimestamp(),
+      order: nextOrder,
     })
     inputRef.current?.focus()
   }
@@ -110,6 +115,25 @@ export default function ProjectDetail({ project, onBack }) {
       await updateDoc(doc(db, 'todos', todo.id), { text })
     }
     setEditingTodoId(null)
+  }
+
+  function resetDrag() {
+    setDraggedId(null)
+    setDragOverId(null)
+  }
+
+  async function handleDrop(targetId) {
+    if (!draggedId || draggedId === targetId) { resetDrag(); return }
+    const fromIdx = todos.findIndex(t => t.id === draggedId)
+    const toIdx = todos.findIndex(t => t.id === targetId)
+    if (fromIdx === -1 || toIdx === -1) { resetDrag(); return }
+    const newArr = [...todos]
+    const [moved] = newArr.splice(fromIdx, 1)
+    newArr.splice(toIdx, 0, moved)
+    await Promise.all(newArr.map((t, i) =>
+      updateDoc(doc(db, 'todos', t.id), { order: i * 1000 })
+    ))
+    resetDrag()
   }
 
   const filtered = todos.filter((t) => {
@@ -192,7 +216,7 @@ export default function ProjectDetail({ project, onBack }) {
               )
             })}
           </div>
-          {/* Author 선택 */}
+          {/* Author */}
           <div className="flex flex-wrap gap-1.5">
             {AUTHORS.map((name) => (
               <button
@@ -255,7 +279,10 @@ export default function ProjectDetail({ project, onBack }) {
         )}
 
         {/* Todo list */}
-        <div className="bg-white rounded-lg border border-gray-100">
+        <div
+          className="bg-white rounded-lg border border-gray-100"
+          onDragOver={(e) => e.preventDefault()}
+        >
           {loading && (
             <div className="text-center py-10 text-gray-400 text-sm">불러오는 중...</div>
           )}
@@ -273,13 +300,32 @@ export default function ProjectDetail({ project, onBack }) {
           {filtered.map((todo, i) => {
             const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
             const isEditing = editingTodoId === todo.id
+            const isDragging = draggedId === todo.id
+            const isDragOver = dragOverId === todo.id && draggedId !== todo.id
             return (
               <div
                 key={todo.id}
-                className={`flex items-center gap-2.5 px-4 py-3 group ${
+                draggable={!isEditing}
+                onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedId(todo.id) }}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(todo.id) }}
+                onDrop={(e) => { e.preventDefault(); handleDrop(todo.id) }}
+                onDragEnd={resetDrag}
+                className={`flex items-center gap-2.5 px-4 py-3 group transition ${
                   i < filtered.length - 1 ? 'border-b border-gray-100' : ''
-                } ${todo.done && !isEditing ? 'opacity-50' : ''}`}
+                } ${todo.done && !isEditing ? 'opacity-50' : ''} ${
+                  isDragging ? 'opacity-30 bg-gray-50' : ''
+                } ${isDragOver ? 'border-t-2 border-indigo-400' : ''}`}
               >
+                {/* Drag handle */}
+                <div
+                  className="shrink-0 cursor-grab text-gray-300 hover:text-gray-500 active:cursor-grabbing select-none"
+                  title="드래그하여 순서 변경"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 6h2v2H8V6zm6 0h2v2h-2V6zM8 11h2v2H8v-2zm6 0h2v2h-2v-2zM8 16h2v2H8v-2zm6 0h2v2h-2v-2z"/>
+                  </svg>
+                </div>
+
                 {/* Checkbox */}
                 <button
                   onClick={() => !isEditing && toggleDone(todo)}
@@ -326,14 +372,14 @@ export default function ProjectDetail({ project, onBack }) {
                   </p>
                 )}
 
-                {/* Author — far right */}
+                {/* Author */}
                 {todo.author && !isEditing && (
                   <span className={`shrink-0 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
                     {todo.author}
                   </span>
                 )}
 
-                {/* Edit / Delete — hover 시에만 공간 차지 */}
+                {/* Edit / Delete */}
                 {isEditing ? (
                   <button
                     onClick={() => saveTodoEdit(todo)}
