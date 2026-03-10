@@ -227,8 +227,6 @@ export default function ProjectList({ onSelectProject }) {
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
-  const [draggedProjectId, setDraggedProjectId] = useState(null)
-  const [dragOverProjectId, setDragOverProjectId] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [noticeText, setNoticeText] = useState('')
@@ -241,8 +239,6 @@ export default function ProjectList({ onSelectProject }) {
   const [editingDate, setEditingDate] = useState('')
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
-  const projListRef = useRef(null)
-  const touchProjRef = useRef({ id: null, overId: null })
   const pullRef = useRef({ startY: 0, pulling: false })
   const [pullDist, setPullDist] = useState(0)
 
@@ -325,68 +321,13 @@ export default function ProjectList({ onSelectProject }) {
     })
   }
 
-  useEffect(() => {
-    const el = projListRef.current
-    if (!el) return
-    function onTouchMove(e) {
-      if (!touchProjRef.current.id) return
-      e.preventDefault()
-      const touch = e.touches[0]
-      const items = el.querySelectorAll('[data-projectid]')
-      let found = null
-      for (const item of items) {
-        const rect = item.getBoundingClientRect()
-        if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-          const id = item.dataset.projectid
-          if (id !== touchProjRef.current.id) found = id
-          break
-        }
-      }
-      if (found !== touchProjRef.current.overId) {
-        touchProjRef.current.overId = found
-        setDragOverProjectId(found)
-      }
-    }
-    function onTouchEnd() {
-      const { id: fromId, overId: toId } = touchProjRef.current
-      touchProjRef.current = { id: null, overId: null }
-      setDraggedProjectId(null)
-      setDragOverProjectId(null)
-      if (!fromId || !toId || fromId === toId) return
-      setProjects(prev => {
-        const fromIdx = prev.findIndex(p => p.id === fromId)
-        const toIdx = prev.findIndex(p => p.id === toId)
-        if (fromIdx === -1 || toIdx === -1) return prev
-        const arr = [...prev]
-        const [moved] = arr.splice(fromIdx, 1)
-        arr.splice(toIdx, 0, moved)
-        Promise.all(arr.map((p, i) => updateDoc(doc(db, 'projects', p.id), { order: i * 1000 })))
-        return arr
-      })
-    }
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-    el.addEventListener('touchend', onTouchEnd)
-    return () => {
-      el.removeEventListener('touchmove', onTouchMove)
-      el.removeEventListener('touchend', onTouchEnd)
-    }
-  }, [])
-
-  async function handleProjectDrop(targetId) {
-    if (!draggedProjectId || draggedProjectId === targetId) {
-      setDraggedProjectId(null); setDragOverProjectId(null); return
-    }
-    const fromIdx = projects.findIndex((p) => p.id === draggedProjectId)
-    const toIdx = projects.findIndex((p) => p.id === targetId)
-    if (fromIdx === -1 || toIdx === -1) {
-      setDraggedProjectId(null); setDragOverProjectId(null); return
-    }
+  async function moveProject(project, direction) {
+    const idx = projects.findIndex(p => p.id === project.id)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= projects.length) return
     const newArr = [...projects]
-    const [moved] = newArr.splice(fromIdx, 1)
-    newArr.splice(toIdx, 0, moved)
+    ;[newArr[idx], newArr[swapIdx]] = [newArr[swapIdx], newArr[idx]]
     setProjects(newArr)
-    setDraggedProjectId(null)
-    setDragOverProjectId(null)
     await Promise.all(newArr.map((p, i) => updateDoc(doc(db, 'projects', p.id), { order: i * 1000 })))
   }
 
@@ -1071,7 +1012,7 @@ ${projectBlocks}
               W.I.P
             </span>
           </div>
-          <div ref={projListRef} className="space-y-2">
+          <div className="space-y-2">
             {loading && (
               <div className="text-center py-12 text-gray-400 text-sm">불러오는 중...</div>
             )}
@@ -1087,24 +1028,14 @@ ${projectBlocks}
               const pct = total ? Math.round((done / total) * 100) : 0
               const isEditing = editingProjectId === project.id
 
-              const isProjDragging = draggedProjectId === project.id
-              const isProjDragOver = dragOverProjectId === project.id && draggedProjectId !== project.id
+              const projIdx = projects.findIndex(p => p.id === project.id)
 
               return (
                 <div
                   key={project.id}
-                  data-projectid={project.id}
-                  draggable={!isEditing}
-                  onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedProjectId(project.id) }}
-                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverProjectId(project.id) }}
-                  onDrop={(e) => { e.preventDefault(); handleProjectDrop(project.id) }}
-                  onDragEnd={() => { setDraggedProjectId(null); setDragOverProjectId(null) }}
-                  onClick={() => !isEditing && !draggedProjectId && onSelectProject(project)}
-                  className={`w-full bg-white rounded-lg border px-4 py-3 text-left transition ${
-                    isProjDragging ? 'opacity-30 bg-gray-50 border-gray-100' :
-                    isProjDragOver ? 'border-orange-400 border-2' :
-                    isEditing ? 'border-gray-100' :
-                    'border-gray-100 hover:border-indigo-200 cursor-pointer active:bg-gray-50'
+                  onClick={() => !isEditing && onSelectProject(project)}
+                  className={`w-full bg-white rounded-lg border border-gray-100 px-4 py-3 text-left transition ${
+                    isEditing ? '' : 'hover:border-indigo-200 cursor-pointer active:bg-gray-50'
                   }`}
                 >
                   {/* 용역명 */}
@@ -1137,10 +1068,7 @@ ${projectBlocks}
                       />
                     </div>
                   ) : (
-                    <p
-                      className="text-sm font-bold text-gray-800 leading-snug break-words cursor-grab active:cursor-grabbing touch-none"
-                      onTouchStart={(e) => { e.stopPropagation(); touchProjRef.current.id = project.id; setDraggedProjectId(project.id) }}
-                    >
+                    <p className="text-sm font-bold text-gray-800 leading-snug break-words">
                       용역명 : {project.name}
                     </p>
                   )}
@@ -1179,7 +1107,28 @@ ${projectBlocks}
                           </button>
                         )}
                         {openMenuId === project.id && (
-                          <div className="absolute left-0 top-7 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden min-w-[100px]">
+                          <div className="absolute left-0 top-7 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden min-w-[120px]">
+                            <button
+                              disabled={projIdx === 0}
+                              onClick={(e) => { e.stopPropagation(); moveProject(project, 'up'); setOpenMenuId(null) }}
+                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+                            >
+                              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                              </svg>
+                              위로 이동
+                            </button>
+                            <button
+                              disabled={projIdx === projects.length - 1}
+                              onClick={(e) => { e.stopPropagation(); moveProject(project, 'down'); setOpenMenuId(null) }}
+                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+                            >
+                              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                              아래로 이동
+                            </button>
+                            <div className="border-t border-gray-100" />
                             <button
                               onClick={(e) => { startEditProject(e, project); setOpenMenuId(null) }}
                               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100"
