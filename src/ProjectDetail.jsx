@@ -15,20 +15,24 @@ import { useToast } from './Toast'
 
 const CATEGORY_CONFIG = {
   '외업': {
-    color: 'text-red-600',
-    badgeClass: 'bg-red-50 text-red-600 border-red-200',
-  },
-  '내업': {
     color: 'text-blue-600',
     badgeClass: 'bg-blue-50 text-blue-600 border-blue-200',
+  },
+  '내업': {
+    color: 'text-lime-600',
+    badgeClass: 'bg-lime-50 text-lime-600 border-lime-200',
   },
   '중요': {
     color: 'text-amber-500',
     badgeClass: 'bg-amber-50 text-amber-600 border-amber-200',
   },
+  '현안': {
+    color: 'text-red-600',
+    badgeClass: 'bg-red-50 text-red-600 border-red-200',
+  },
   '기타': {
-    color: 'text-green-600',
-    badgeClass: 'bg-green-50 text-green-600 border-green-200',
+    color: 'text-gray-800',
+    badgeClass: 'bg-gray-100 text-gray-800 border-gray-400',
   },
 }
 
@@ -108,7 +112,7 @@ export default function ProjectDetail({ project, onBack }) {
     setEditingPopup({
       id: todo.id,
       text: todo.text, origText: todo.text,
-      category: todo.category || '외업', origCategory: todo.category || '외업',
+      category: todo.category || '기타', origCategory: todo.category || '기타',
       author: todo.author || '', origAuthor: todo.author || '',
     })
   }
@@ -261,14 +265,14 @@ export default function ProjectDetail({ project, onBack }) {
               <p className="text-sm font-bold" style={monoOrange}>Edit</p>
               {/* Category */}
               <div className="flex gap-1.5 flex-wrap">
-                {['외업','내업','중요','기타'].map((cat) => {
+                {['외업','내업','중요','현안','기타'].map((cat) => {
                   const c = CATEGORY_CONFIG[cat]
                   return (
                     <button key={cat} type="button"
                       onClick={() => setEditingPopup(p => ({ ...p, category: cat }))}
                       className={`px-3 py-1 rounded-lg text-xs font-bold border transition active:scale-95 ${editingPopup.category === cat ? c.badgeClass : 'text-gray-400 border-gray-200 bg-white'}`}
                     >
-                      {cat === '중요' && '★ '}{cat}
+                      {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#e53e3e', fontSize: '9px', marginRight: '2px' }}>▲</span>}{cat}
                     </button>
                   )
                 })}
@@ -389,12 +393,12 @@ export default function ProjectDetail({ project, onBack }) {
               />
             </div>
             <div className="flex gap-3 mt-2">
-              {['외업', '내업', '중요', '기타'].map((cat) => {
+              {['외업', '내업', '중요', '현안', '기타'].map((cat) => {
                 const count = todos.filter((t) => t.category === cat).length
                 const cfg = CATEGORY_CONFIG[cat]
                 return (
                   <span key={cat} className={`text-xs font-semibold ${cfg.color}`}>
-                    {cat === '중요' && '★ '}{cat} {count}
+                    {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#e53e3e', fontSize: '9px', marginRight: '1px' }}>▲</span>}{cat} {count}
                   </span>
                 )
               })}
@@ -405,8 +409,8 @@ export default function ProjectDetail({ project, onBack }) {
         {/* Input area */}
         <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 space-y-2.5">
           {/* Category */}
-          <div className="flex gap-2">
-            {['외업', '내업', '중요', '기타'].map((cat) => {
+          <div className="flex gap-2 flex-wrap">
+            {['외업', '내업', '중요', '현안', '기타'].map((cat) => {
               const cfg = CATEGORY_CONFIG[cat]
               return (
                 <button
@@ -418,7 +422,7 @@ export default function ProjectDetail({ project, onBack }) {
                       : 'text-gray-400 border-gray-200 bg-white'
                   }`}
                 >
-                  {cat === '중요' && '★ '}{cat}
+                  {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#e53e3e', fontSize: '10px', marginRight: '2px' }}>▲</span>}{cat}
                 </button>
               )
             })}
@@ -550,6 +554,7 @@ export default function ProjectDetail({ project, onBack }) {
 
                 <p className={`flex-1 text-sm leading-snug break-all ${todo.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                   {todo.category === '중요' && <span className="text-amber-400 font-bold mr-1">★</span>}
+                  {todo.category === '현안' && <span style={{ color: '#e53e3e', fontSize: '11px', marginRight: '3px', fontWeight: 'bold' }}>▲</span>}
                   {todo.text}
                 </p>
                 {todo.author && (
