@@ -227,6 +227,8 @@ export default function ProjectList({ onSelectProject }) {
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
+  const [draggedProjectId, setDraggedProjectId] = useState(null)
+  const [dragOverProjectId, setDragOverProjectId] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [noticeText, setNoticeText] = useState('')
@@ -252,9 +254,14 @@ export default function ProjectList({ onSelectProject }) {
   }, [showAddModal])
 
   useEffect(() => {
-    const q = query(collection(db, 'projects'), orderBy('createdAt', 'asc'))
-    const unsub = onSnapshot(q, (snap) => {
-      setProjects(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    const unsub = onSnapshot(collection(db, 'projects'), (snap) => {
+      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      all.sort((a, b) => {
+        const aO = a.order ?? a.createdAt?.toMillis?.() ?? 0
+        const bO = b.order ?? b.createdAt?.toMillis?.() ?? 0
+        return aO - bO
+      })
+      setProjects(all)
       setLoading(false)
     })
     return unsub
@@ -298,6 +305,24 @@ export default function ProjectList({ onSelectProject }) {
       completionDate: completionDate.trim() || null,
       createdAt: serverTimestamp(),
     })
+  }
+
+  async function handleProjectDrop(targetId) {
+    if (!draggedProjectId || draggedProjectId === targetId) {
+      setDraggedProjectId(null); setDragOverProjectId(null); return
+    }
+    const fromIdx = projects.findIndex((p) => p.id === draggedProjectId)
+    const toIdx = projects.findIndex((p) => p.id === targetId)
+    if (fromIdx === -1 || toIdx === -1) {
+      setDraggedProjectId(null); setDragOverProjectId(null); return
+    }
+    const newArr = [...projects]
+    const [moved] = newArr.splice(fromIdx, 1)
+    newArr.splice(toIdx, 0, moved)
+    setProjects(newArr)
+    setDraggedProjectId(null)
+    setDragOverProjectId(null)
+    await Promise.all(newArr.map((p, i) => updateDoc(doc(db, 'projects', p.id), { order: i * 1000 })))
   }
 
   function deleteProject(e, project) {
@@ -974,11 +999,24 @@ ${projectBlocks}
               const pct = total ? Math.round((done / total) * 100) : 0
               const isEditing = editingProjectId === project.id
 
+              const isProjDragging = draggedProjectId === project.id
+              const isProjDragOver = dragOverProjectId === project.id && draggedProjectId !== project.id
+
               return (
                 <div
                   key={project.id}
-                  onClick={() => !isEditing && onSelectProject(project)}
-                  className={`w-full bg-white rounded-lg border border-gray-100 px-4 py-3 text-left transition ${isEditing ? '' : 'hover:border-indigo-200 cursor-pointer active:bg-gray-50'}`}
+                  draggable={!isEditing}
+                  onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedProjectId(project.id) }}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverProjectId(project.id) }}
+                  onDrop={(e) => { e.preventDefault(); handleProjectDrop(project.id) }}
+                  onDragEnd={() => { setDraggedProjectId(null); setDragOverProjectId(null) }}
+                  onClick={() => !isEditing && !draggedProjectId && onSelectProject(project)}
+                  className={`w-full bg-white rounded-lg border px-4 py-3 text-left transition ${
+                    isProjDragging ? 'opacity-30 bg-gray-50 border-gray-100' :
+                    isProjDragOver ? 'border-orange-400 border-2' :
+                    isEditing ? 'border-gray-100' :
+                    'border-gray-100 hover:border-indigo-200 cursor-pointer active:bg-gray-50'
+                  }`}
                 >
                   {/* 용역명 */}
                   {isEditing ? (
