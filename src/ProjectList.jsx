@@ -122,10 +122,11 @@ function MonthCalendarModal({ onClose }) {
 }
 
 const CATEGORY_CONFIG = {
-  '외업': { color: 'text-red-600' },
-  '내업': { color: 'text-blue-600' },
+  '외업': { color: 'text-blue-600' },
+  '내업': { color: 'text-lime-600' },
   '중요': { color: 'text-amber-500' },
-  '기타': { color: 'text-green-600' },
+  '현안': { color: 'text-red-600' },
+  '기타': { color: 'text-gray-800' },
 }
 
 function getItemYear(item) {
@@ -804,12 +805,14 @@ ${projectBlocks}
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm transition active:scale-95"
-            title="새 용역 추가"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg transition active:scale-95 hover:opacity-80 shrink-0"
+            style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A', border: '2px solid #E8694A', background: '#f5f5f5', fontSize: '12px', fontWeight: 700 }}
+            title="Add New Project"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
+            Add New Project
           </button>
         </div>
       </header>
@@ -870,10 +873,11 @@ ${projectBlocks}
           onClick={() => { setShowAddModal(false); setInput(''); setCompletionDate('') }}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl p-5 w-80"
+            className="rounded-2xl shadow-xl p-5 w-80"
+            style={{ background: '#f5f5f5', border: '2px solid #E8694A' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-sm font-bold text-gray-800 mb-3">새 용역 추가</p>
+            <p className="text-sm font-bold mb-3" style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }}>Add New Project</p>
             <input
               ref={addInputRef}
               type="text"
@@ -884,10 +888,11 @@ ${projectBlocks}
                 if (e.key === 'Escape') { setShowAddModal(false); setInput(''); setCompletionDate('') }
               }}
               placeholder="용역명을 입력하세요..."
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition mb-3"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 transition mb-3 bg-white"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
               maxLength={150}
             />
-            <label className="block text-xs font-medium text-gray-500 mb-1">준공일 (YY/MM/DD)</label>
+            <label className="block text-xs font-medium mb-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }}>SCD(준공일)</label>
             <input
               type="text"
               value={completionDate}
@@ -897,20 +902,23 @@ ${projectBlocks}
                 if (e.key === 'Escape') { setShowAddModal(false); setInput(''); setCompletionDate('') }
               }}
               placeholder="예: 26/12/31"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition mb-4"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 transition mb-4 bg-white"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
               maxLength={8}
             />
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowAddModal(false); setInput(''); setCompletionDate('') }}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 transition active:scale-95"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition active:scale-95 hover:opacity-80"
+                style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A', border: '2px solid #E8694A', background: '#f5f5f5' }}
               >
                 취소
               </button>
               <button
                 onClick={addProject}
                 disabled={!input.trim()}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed transition active:scale-95"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition active:scale-95"
+                style={{ fontFamily: "'JetBrains Mono', monospace", backgroundColor: '#E8694A' }}
               >
                 추가
               </button>
@@ -1272,6 +1280,7 @@ ${projectBlocks}
                             </span>
                             <p className={`flex-1 text-xs break-all leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
                               {todo.category === '중요' && <span className="text-amber-400 font-bold mr-0.5">★</span>}
+                              {todo.category === '현안' && <span style={{ color: '#e53e3e', fontSize: '10px', marginRight: '2px', fontWeight: 'bold' }}>▲</span>}
                               {todo.text}
                             </p>
                             {todo.author && (() => {
