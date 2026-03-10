@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { getAuthorClass } from './authorConfig'
+import { getAuthorClass, getAuthorPhone } from './authorConfig'
 import {
   collection,
   addDoc,
@@ -1017,11 +1017,27 @@ ${projectBlocks}
                             {todo.category === '중요' && <span className="text-amber-400 font-bold mr-0.5">★</span>}
                             {todo.text}
                           </p>
-                          {todo.author && (
-                            <span className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
-                              {todo.author}
-                            </span>
-                          )}
+                          {todo.author && (() => {
+                            const phone = getAuthorPhone(todo.author)
+                            return phone ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  if (window.confirm(`${todo.author} (${phone})\n전화하시겠습니까?`)) {
+                                    window.location.href = `tel:${phone.replace(/-/g, '')}`
+                                  }
+                                }}
+                                className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)} active:opacity-70 transition`}
+                                title={`${todo.author} 에게 전화`}
+                              >
+                                {todo.author}
+                              </button>
+                            ) : (
+                              <span className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
+                                {todo.author}
+                              </span>
+                            )
+                          })()}
                         </div>
                       )
                     })}
