@@ -39,17 +39,13 @@ export default function ProjectDetail({ project, onBack }) {
   const [category, setCategory] = useState('외업')
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
-  const [editingTodoId, setEditingTodoId] = useState(null)
-  const [editingText, setEditingText] = useState('')
-  const [editingCategory, setEditingCategory] = useState('외업')
-  const [editingAuthor, setEditingAuthor] = useState('')
+  const [editingPopup, setEditingPopup] = useState(null) // { id, text, origText, category, origCategory, author, origAuthor }
   const [confirmDialog, setConfirmDialog] = useState(null) // { message, onConfirm }
   const [draggedId, setDraggedId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const inputRef = useRef(null)
   const listRef = useRef(null)
   const touchDragRef = useRef({ id: null, overId: null, startX: 0, startY: 0, dragging: false })
-  const editTodoRef = useRef(null)
   const prevTodoIdsRef = useRef(null)
   const { addToast, ToastContainer } = useToast()
 
@@ -108,26 +104,24 @@ export default function ProjectDetail({ project, onBack }) {
     await deleteDoc(doc(db, 'todos', id))
   }
 
-  function startEditTodo(todo) {
-    setEditingTodoId(todo.id)
-    setEditingText(todo.text)
-    setEditingCategory(todo.category || '외업')
-    setEditingAuthor(todo.author || '')
-    setTimeout(() => editTodoRef.current?.focus(), 0)
+  function openEditPopup(todo) {
+    setEditingPopup({
+      id: todo.id,
+      text: todo.text, origText: todo.text,
+      category: todo.category || '외업', origCategory: todo.category || '외업',
+      author: todo.author || '', origAuthor: todo.author || '',
+    })
   }
 
-  async function saveTodoEdit(todo) {
-    const text = editingText.trim()
-    if (text) {
-      const updates = {}
-      if (text !== todo.text) updates.text = text
-      if (editingCategory !== todo.category) updates.category = editingCategory
-      if (editingAuthor && editingAuthor !== todo.author) updates.author = editingAuthor
-      if (Object.keys(updates).length > 0) {
-        await updateDoc(doc(db, 'todos', todo.id), updates)
-      }
-    }
-    setEditingTodoId(null)
+  async function saveEditPopup() {
+    const text = editingPopup.text.trim()
+    if (!text) return
+    const updates = {}
+    if (text !== editingPopup.origText) updates.text = text
+    if (editingPopup.category !== editingPopup.origCategory) updates.category = editingPopup.category
+    if (editingPopup.author !== editingPopup.origAuthor) updates.author = editingPopup.author
+    if (Object.keys(updates).length > 0) await updateDoc(doc(db, 'todos', editingPopup.id), updates)
+    setEditingPopup(null)
   }
 
   function resetDrag() {
@@ -253,6 +247,79 @@ export default function ProjectDetail({ project, onBack }) {
           </div>
         </div>
       )}
+
+      {/* Todo 편집 팝업 */}
+      {editingPopup && (() => {
+        const monoOrange = { fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }
+        const isModified =
+          editingPopup.text.trim() !== editingPopup.origText ||
+          editingPopup.category !== editingPopup.origCategory ||
+          editingPopup.author !== editingPopup.origAuthor
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditingPopup(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl p-5 w-80 max-w-sm flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+              <p className="text-sm font-bold" style={monoOrange}>Edit</p>
+              {/* Category */}
+              <div className="flex gap-1.5 flex-wrap">
+                {['외업','내업','중요','기타'].map((cat) => {
+                  const c = CATEGORY_CONFIG[cat]
+                  return (
+                    <button key={cat} type="button"
+                      onClick={() => setEditingPopup(p => ({ ...p, category: cat }))}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold border transition active:scale-95 ${editingPopup.category === cat ? c.badgeClass : 'text-gray-400 border-gray-200 bg-white'}`}
+                    >
+                      {cat === '중요' && '★ '}{cat}
+                    </button>
+                  )
+                })}
+              </div>
+              {/* Author */}
+              <div className="flex flex-wrap gap-1">
+                {AUTHORS.map((name) => (
+                  <button key={name} type="button"
+                    onClick={() => setEditingPopup(p => ({ ...p, author: p.author === name ? '' : name }))}
+                    className={`text-xs font-semibold rounded-full px-2.5 py-0.5 border transition active:scale-95 ${editingPopup.author === name ? getAuthorClass(name) : 'text-gray-400 bg-white border-gray-200'}`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+              {/* Text */}
+              <textarea
+                autoFocus
+                value={editingPopup.text}
+                onChange={(e) => setEditingPopup(p => ({ ...p, text: e.target.value }))}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 resize-none leading-relaxed"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setEditingPopup(null); setConfirmDialog({ message: 'Delete this item?', onConfirm: () => deleteTodo(editingPopup.id) }) }}
+                  className="flex-1 py-2.5 rounded-xl text-sm border border-current transition active:scale-95 hover:bg-orange-50"
+                  style={monoOrange}
+                >
+                  Delete
+                </button>
+                {isModified ? (
+                  <button onClick={saveEditPopup}
+                    className="flex-1 py-2.5 rounded-xl text-sm text-white transition active:scale-95"
+                    style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    Save
+                  </button>
+                ) : (
+                  <button onClick={() => setEditingPopup(null)}
+                    className="flex-1 py-2.5 rounded-xl text-sm border border-current transition active:scale-95 hover:bg-orange-50"
+                    style={monoOrange}
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 삭제 확인 모달 */}
       {confirmDialog && (
@@ -440,40 +507,36 @@ export default function ProjectDetail({ project, onBack }) {
 
           {filtered.map((todo, i) => {
             const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
-            const isEditing = editingTodoId === todo.id
             const isDragging = draggedId === todo.id
             const isDragOver = dragOverId === todo.id && draggedId !== todo.id
             return (
               <div
                 key={todo.id}
                 data-todoid={todo.id}
+                onClick={() => openEditPopup(todo)}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(todo.id) }}
                 onDrop={(e) => { e.preventDefault(); handleDrop(todo.id) }}
                 onDragEnd={resetDrag}
-                className={`flex gap-2.5 px-4 py-3 group transition ${
-                  isEditing ? 'items-start' : 'items-center'
-                } ${i < filtered.length - 1 ? 'border-b border-gray-100' : ''} ${
-                  todo.done && !isEditing ? 'opacity-50' : ''
-                } ${isDragging ? 'opacity-30 bg-gray-50' : ''} ${
+                className={`flex gap-2.5 px-4 py-3 items-center cursor-pointer hover:bg-gray-50 transition ${
+                  i < filtered.length - 1 ? 'border-b border-gray-100' : ''
+                } ${todo.done ? 'opacity-50' : ''} ${isDragging ? 'opacity-30 bg-gray-50' : ''} ${
                   isDragOver ? 'border-t-2 border-indigo-400' : ''
                 }`}
               >
-                {/* 드래그 핸들: 체크박스 + 카테고리 */}
+                {/* 드래그 핸들 + 체크박스 + 카테고리 */}
                 <div
-                  draggable={!isEditing}
+                  draggable
                   onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedId(todo.id) }}
                   onTouchStart={(e) => {
-                    if (isEditing) return
                     touchDragRef.current = { id: todo.id, overId: null, startX: e.touches[0].clientX, startY: e.touches[0].clientY, dragging: false }
                   }}
-                  className={`flex items-center gap-2 shrink-0 ${isEditing ? '' : 'cursor-grab active:cursor-grabbing'}`}
+                  className="flex items-center gap-2 shrink-0 cursor-grab active:cursor-grabbing"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <button
-                    onClick={() => !isEditing && toggleDone(todo)}
+                    onClick={(e) => { e.stopPropagation(); toggleDone(todo) }}
                     className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition mt-0.5 ${
-                      todo.done
-                        ? 'bg-indigo-500 border-indigo-500'
-                        : 'border-gray-300 hover:border-indigo-400'
+                      todo.done ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300 hover:border-indigo-400'
                     }`}
                   >
                     {todo.done && (
@@ -482,114 +545,17 @@ export default function ProjectDetail({ project, onBack }) {
                       </svg>
                     )}
                   </button>
-                  {!isEditing && (
-                    <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
-                      {todo.category || '기타'}
-                    </span>
-                  )}
+                  <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>{todo.category || '기타'}</span>
                 </div>
 
-                {isEditing ? (
-                  /* ── 수정 모드: 카테고리 + 작성자 + 텍스트 세로 배열 ── */
-                  <div className="flex-1 flex flex-col gap-2">
-                    {/* Category */}
-                    <div className="flex gap-1.5 flex-wrap">
-                      {['외업', '내업', '중요', '기타'].map((cat) => {
-                        const c = CATEGORY_CONFIG[cat]
-                        return (
-                          <button
-                            key={cat}
-                            type="button"
-                            onClick={() => setEditingCategory(cat)}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold border transition active:scale-95 ${
-                              editingCategory === cat ? c.badgeClass : 'text-gray-400 border-gray-200 bg-white'
-                            }`}
-                          >
-                            {cat === '중요' && '★ '}{cat}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {/* Author */}
-                    <div className="flex flex-wrap gap-1">
-                      {AUTHORS.map((name) => (
-                        <button
-                          key={name}
-                          type="button"
-                          onClick={() => setEditingAuthor(editingAuthor === name ? '' : name)}
-                          className={`text-xs font-semibold rounded-full px-2.5 py-0.5 border transition active:scale-95 ${
-                            editingAuthor === name
-                              ? getAuthorClass(name)
-                              : 'text-gray-400 bg-white border-gray-200'
-                          }`}
-                        >
-                          {name}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Text input */}
-                    <input
-                      ref={editTodoRef}
-                      type="text"
-                      value={editingText}
-                      onChange={(e) => setEditingText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveTodoEdit(todo)
-                        if (e.key === 'Escape') setEditingTodoId(null)
-                      }}
-                      className="px-2 py-1.5 border border-indigo-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 w-full"
-                      maxLength={200}
-                    />
-                  </div>
-                ) : (
-                  /* ── 일반 모드 ── */
-                  <>
-                    <p className={`flex-1 text-sm leading-snug break-all ${
-                      todo.done ? 'line-through text-gray-400' : 'text-gray-800'
-                    }`}>
-                      {todo.category === '중요' && <span className="text-amber-400 font-bold mr-1">★</span>}
-                      {todo.text}
-                    </p>
-                    {todo.author && (
-                      <span className={`shrink-0 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
-                        {todo.author}
-                      </span>
-                    )}
-                  </>
-                )}
-
-                {/* Edit / Delete / Save */}
-                {isEditing ? (
-                  <button
-                    onClick={() => saveTodoEdit(todo)}
-                    className="text-indigo-500 hover:text-indigo-700 transition shrink-0 p-0.5 mt-0.5"
-                    title="저장"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </button>
-                ) : (
-                  <div className="hidden group-hover:flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => startEditTodo(todo)}
-                      className="text-gray-300 hover:text-indigo-400 transition"
-                      title="수정"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => setConfirmDialog({ message: 'Delete this item?', onConfirm: () => deleteTodo(todo.id) })}
-                      className="text-gray-300 hover:text-red-400 transition"
-                      title="삭제"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
+                <p className={`flex-1 text-sm leading-snug break-all ${todo.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                  {todo.category === '중요' && <span className="text-amber-400 font-bold mr-1">★</span>}
+                  {todo.text}
+                </p>
+                {todo.author && (
+                  <span className={`shrink-0 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
+                    {todo.author}
+                  </span>
                 )}
               </div>
             )
