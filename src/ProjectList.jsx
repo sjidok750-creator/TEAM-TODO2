@@ -4,6 +4,7 @@ import {
   collection,
   addDoc,
   deleteDoc,
+  getDocs,
   updateDoc,
   doc,
   onSnapshot,
@@ -11,8 +12,7 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { db, storage } from './firebase'
+import { db } from './firebase'
 
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
@@ -231,6 +231,7 @@ export default function ProjectList({ onSelectProject }) {
   const [viewNotice, setViewNotice] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [fileInputKey, setFileInputKey] = useState(0)
+  const [downloadingId, setDownloadingId] = useState(null)
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
 
@@ -340,35 +341,109 @@ export default function ProjectList({ onSelectProject }) {
     setViewNotice(null)
   }
 
+  // base64 청크 하나당 700,000자 ≈ Firestore 문서 ~700KB (한도 1MB 이내)
+  const CHUNK_B64 = 700_000
+
   async function handleFileUpload(e) {
     const file = e.target.files[0]
     if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      alert('파일 크기는 5MB 이하만 업로드할 수 있습니다.')
+      setFileInputKey(k => k + 1)
+      return
+    }
     setUploading(true)
     try {
-      const storageRef = ref(storage, `sharedFiles/${Date.now()}_${file.name}`)
-      await uploadBytes(storageRef, file)
-      const url = await getDownloadURL(storageRef)
-      await addDoc(collection(db, 'sharedFiles'), {
-        name: file.name,
-        storagePath: storageRef.fullPath,
-        url,
-        createdAt: serverTimestamp(),
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
       })
+      const commaIdx = dataUrl.indexOf(',')
+      const prefix = dataUrl.slice(0, commaIdx + 1)
+      const b64 = dataUrl.slice(commaIdx + 1)
+
+      if (b64.length <= CHUNK_B64) {
+        // 소용량: 기존처럼 단일 문서에 저장
+        await addDoc(collection(db, 'sharedFiles'), {
+          name: file.name,
+          data: dataUrl,
+          size: file.size,
+          type: file.type,
+          createdAt: serverTimestamp(),
+        })
+      } else {
+        // 대용량: 서브컬렉션 청크로 분할 저장
+        const chunks = []
+        for (let i = 0; i < b64.length; i += CHUNK_B64) {
+          chunks.push(b64.slice(i, i + CHUNK_B64))
+        }
+        const metaRef = await addDoc(collection(db, 'sharedFiles'), {
+          name: file.name,
+          prefix,
+          chunkCount: chunks.length,
+          size: file.size,
+          type: file.type,
+          createdAt: serverTimestamp(),
+        })
+        await Promise.all(
+          chunks.map((chunk, i) =>
+            addDoc(collection(db, 'sharedFiles', metaRef.id, 'chunks'), {
+              index: i,
+              data: chunk,
+            })
+          )
+        )
+      }
     } catch (err) {
       console.error('파일 업로드 실패:', err)
-      alert('파일 업로드에 실패했습니다. Firebase Storage 설정을 확인하세요.')
+      alert('파일 업로드에 실패했습니다.')
     } finally {
       setUploading(false)
       setFileInputKey(k => k + 1)
     }
   }
 
-  async function deleteSharedFile(file) {
+  async function downloadFile(file) {
+    if (downloadingId) return
+    // 단일 문서 형식
+    if (file.data) {
+      const a = document.createElement('a')
+      a.href = file.data
+      a.download = file.name
+      a.click()
+      return
+    }
+    // 구버전 Storage URL
+    if (file.url) {
+      window.open(file.url, '_blank')
+      return
+    }
+    // 청크 재조합
+    setDownloadingId(file.id)
     try {
-      const storageRef = ref(storage, file.storagePath)
-      await deleteObject(storageRef)
+      const snap = await getDocs(
+        query(collection(db, 'sharedFiles', file.id, 'chunks'), orderBy('index'))
+      )
+      const b64 = snap.docs.map(d => d.data().data).join('')
+      const dataUrl = file.prefix + b64
+      const a = document.createElement('a')
+      a.href = dataUrl
+      a.download = file.name
+      a.click()
     } catch (err) {
-      console.warn('Storage 파일 삭제 실패:', err)
+      console.error('다운로드 실패:', err)
+      alert('다운로드에 실패했습니다.')
+    } finally {
+      setDownloadingId(null)
+    }
+  }
+
+  async function deleteSharedFile(file) {
+    if (file.chunkCount) {
+      const snap = await getDocs(collection(db, 'sharedFiles', file.id, 'chunks'))
+      await Promise.all(snap.docs.map(d => deleteDoc(d.ref)))
     }
     await deleteDoc(doc(db, 'sharedFiles', file.id))
   }
@@ -672,15 +747,14 @@ ${projectBlocks}
                 key={file.id}
                 className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-xs"
               >
-                <a
-                  href={file.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-700 hover:text-indigo-600 transition"
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  onClick={(e) => { e.stopPropagation(); downloadFile(file) }}
+                  disabled={downloadingId === file.id}
+                  className="text-gray-700 hover:text-indigo-600 transition disabled:opacity-50"
+                  title={file.name}
                 >
-                  {formatFileName(file.name)}
-                </a>
+                  {downloadingId === file.id ? '다운로드중...' : formatFileName(file.name)}
+                </button>
                 <button
                   onClick={() => deleteSharedFile(file)}
                   className="text-gray-300 hover:text-red-400 transition shrink-0 leading-none"
@@ -851,11 +925,6 @@ ${projectBlocks}
               className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2.5 py-1 hover:bg-orange-100 transition active:scale-95"
               title="WIP 현황을 PDF로 내보내기"
             >
-              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-                <path d="M12 3L22 21H2L12 3Z" fill="#E8694A"/>
-                <path d="M12 9.5V15" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                <circle cx="12" cy="18" r="1.1" fill="white"/>
-              </svg>
               W.I.P PDF
             </button>
           </div>
