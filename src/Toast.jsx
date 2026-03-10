@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 
-// Single toast item
 function ToastItem({ toast, onRemove }) {
   useEffect(() => {
     const t = setTimeout(() => onRemove(toast.id), toast.duration ?? 4000)
@@ -8,23 +7,27 @@ function ToastItem({ toast, onRemove }) {
   }, [toast.id, toast.duration, onRemove])
 
   return (
-    <div
-      className="flex items-start gap-2.5 bg-gray-900 text-white text-sm rounded-xl px-4 py-3 shadow-lg max-w-xs w-full animate-slide-up"
-      onClick={() => onRemove(toast.id)}
-    >
+    <div className="flex items-center gap-2.5 bg-gray-900 text-white text-sm rounded-xl px-4 py-3 shadow-lg max-w-xs w-full animate-slide-up">
       <span className="text-base shrink-0">{toast.icon ?? '🔔'}</span>
       <p className="leading-snug break-words flex-1">{toast.message}</p>
+      {toast.action && (
+        <button
+          onClick={() => { toast.action.fn(); onRemove(toast.id) }}
+          className="shrink-0 text-orange-300 hover:text-orange-100 font-bold text-xs border border-orange-400 rounded px-2 py-0.5 ml-1"
+        >
+          {toast.action.label}
+        </button>
+      )}
     </div>
   )
 }
 
-// Container + hook
 export function useToast() {
   const [toasts, setToasts] = useState([])
 
-  function addToast(message, { icon, duration } = {}) {
+  function addToast(message, { icon, duration, action } = {}) {
     const id = Date.now() + Math.random()
-    setToasts((prev) => [...prev, { id, message, icon, duration }])
+    setToasts((prev) => [...prev, { id, message, icon, duration, action }])
   }
 
   function removeToast(id) {
