@@ -271,6 +271,7 @@ export default function ProjectList({ onSelectProject }) {
     const unsub = onSnapshot(collection(db, 'projects'), (snap) => {
       const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
       all.sort((a, b) => {
+        if (!!a.closed !== !!b.closed) return a.closed ? 1 : -1
         const aO = a.order ?? a.createdAt?.toMillis?.() ?? 0
         const bO = b.order ?? b.createdAt?.toMillis?.() ?? 0
         return aO - bO
@@ -322,13 +323,23 @@ export default function ProjectList({ onSelectProject }) {
   }
 
   async function moveProject(project, direction) {
-    const idx = projects.findIndex(p => p.id === project.id)
+    const active = projects.filter(p => !p.closed)
+    const idx = active.findIndex(p => p.id === project.id)
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-    if (swapIdx < 0 || swapIdx >= projects.length) return
-    const newArr = [...projects]
+    if (swapIdx < 0 || swapIdx >= active.length) return
+    const newArr = [...active]
     ;[newArr[idx], newArr[swapIdx]] = [newArr[swapIdx], newArr[idx]]
-    setProjects(newArr)
     await Promise.all(newArr.map((p, i) => updateDoc(doc(db, 'projects', p.id), { order: i * 1000 })))
+  }
+
+  async function closeProject(e, project) {
+    e.stopPropagation()
+    await updateDoc(doc(db, 'projects', project.id), { closed: true })
+  }
+
+  async function continueProject(e, project) {
+    e.stopPropagation()
+    await updateDoc(doc(db, 'projects', project.id), { closed: false })
   }
 
   function deleteProject(e, project) {
@@ -1027,185 +1038,232 @@ ${projectBlocks}
               const done = projectTodos.filter((t) => t.done).length
               const pct = total ? Math.round((done / total) * 100) : 0
               const isEditing = editingProjectId === project.id
+              const isClosed = !!project.closed
+              const activeProjects = projects.filter(p => !p.closed)
+              const projIdx = activeProjects.findIndex(p => p.id === project.id)
 
-              const projIdx = projects.findIndex(p => p.id === project.id)
+              const menuStyle = { fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }
+              const menuBtn = 'w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-orange-50 active:bg-orange-100 whitespace-nowrap'
 
               return (
-                <div
-                  key={project.id}
-                  onClick={() => !isEditing && onSelectProject(project)}
-                  className={`w-full bg-white rounded-lg border border-gray-100 px-4 py-3 text-left transition ${
-                    isEditing ? '' : 'hover:border-indigo-200 cursor-pointer active:bg-gray-50'
-                  }`}
-                >
-                  {/* 용역명 */}
-                  {isEditing ? (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <input
-                        ref={editNameRef}
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveProjectName(e, project)
-                          if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
-                        }}
-                        placeholder="용역명"
-                        className="w-full px-2 py-1 border border-indigo-400 rounded text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                        maxLength={150}
-                      />
-                      <input
-                        type="text"
-                        value={editingDate}
-                        onChange={(e) => setEditingDate(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveProjectName(e, project)
-                          if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
-                        }}
-                        placeholder="준공일 YY/MM/DD (예: 26/12/31)"
-                        className="mt-1.5 w-full px-2 py-1 border border-indigo-200 rounded text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                        maxLength={8}
-                      />
+                <div key={project.id} className="relative">
+                  {/* 카드 본문 — closed 시 blur + pointer-events 차단 */}
+                  <div
+                    onClick={() => !isEditing && !isClosed && onSelectProject(project)}
+                    className={`w-full bg-white rounded-lg border border-gray-100 px-4 py-3 text-left transition ${
+                      isClosed ? 'blur-[1.5px] opacity-40 pointer-events-none select-none' :
+                      isEditing ? '' : 'hover:border-indigo-200 cursor-pointer active:bg-gray-50'
+                    }`}
+                  >
+                    {/* 용역명 */}
+                    {isEditing ? (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <input
+                          ref={editNameRef}
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveProjectName(e, project)
+                            if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
+                          }}
+                          placeholder="용역명"
+                          className="w-full px-2 py-1 border border-indigo-400 rounded text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          maxLength={150}
+                        />
+                        <input
+                          type="text"
+                          value={editingDate}
+                          onChange={(e) => setEditingDate(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveProjectName(e, project)
+                            if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
+                          }}
+                          placeholder="준공일 YY/MM/DD (예: 26/12/31)"
+                          className="mt-1.5 w-full px-2 py-1 border border-indigo-200 rounded text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                          maxLength={8}
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-sm font-bold text-gray-800 leading-snug break-words pr-8">
+                        용역명 : {project.name}
+                      </p>
+                    )}
+
+                    {/* TODO 목록 */}
+                    <div className="mt-1.5 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo list</span>
+                        {project.completionDate && (
+                          <span
+                            className="inline-block text-xs font-normal text-orange-500 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5"
+                            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            SCD {project.completionDate}
+                          </span>
+                        )}
+                      </div>
+
+                      {total === 0 && (
+                        <p className="text-xs text-gray-400 ml-1">할 일을 추가해보세요</p>
+                      )}
+                      {projectTodos.map((todo) => {
+                        const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
+                        return (
+                          <div key={todo.id} className="flex items-center gap-1">
+                            <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
+                              ({todo.category || '기타'})
+                            </span>
+                            <p className={`flex-1 text-xs break-all leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                              {todo.category === '중요' && <span className="text-amber-400 font-bold mr-0.5">★</span>}
+                              {todo.text}
+                            </p>
+                            {todo.author && (() => {
+                              const phone = getAuthorPhone(todo.author)
+                              return phone ? (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setCallTarget({ name: todo.author, phone }) }}
+                                  className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)} active:opacity-70 transition`}
+                                  title={`${todo.author} 에게 전화`}
+                                >
+                                  {todo.author}
+                                </button>
+                              ) : (
+                                <span className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
+                                  {todo.author}
+                                </span>
+                              )
+                            })()}
+                          </div>
+                        )
+                      })}
                     </div>
-                  ) : (
-                    <p className="text-sm font-bold text-gray-800 leading-snug break-words">
-                      용역명 : {project.name}
-                    </p>
+
+                    {/* 진행률 바 */}
+                    {total > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center justify-between text-xs text-gray-400">
+                          <span>{done} / {total} 완료</span>
+                          <span>{pct}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div
+                            className="h-1.5 rounded-full transition-all"
+                            style={{ width: `${pct}%`, backgroundColor: '#E8694A' }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* END 오버레이 — closed 시 표시 */}
+                  {isClosed && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-lg pointer-events-none">
+                      <span
+                        className="text-5xl font-bold tracking-[0.3em] opacity-60"
+                        style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }}
+                      >
+                        END
+                      </span>
+                    </div>
                   )}
 
-                  {/* TODO 목록 */}
-                  <div className="mt-1.5 space-y-0.5">
-                    {/* todo list 라벨 + ··· 버튼 */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo list</span>
-                      {project.completionDate && (
-                        <span
-                          className="inline-block text-xs font-normal text-orange-500 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5"
-                          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                        >
-                          SCD {project.completionDate}
-                        </span>
-                      )}
-                      <div className="relative" onClick={(e) => e.stopPropagation()}>
-                        {isEditing ? (
-                          <button
-                            onClick={(e) => saveProjectName(e, project)}
-                            className="text-indigo-500 hover:text-indigo-700 transition p-1 rounded active:bg-indigo-50"
-                            title="저장"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setOpenMenuId(openMenuId === project.id ? null : project.id)}
-                            className="text-gray-400 hover:text-gray-600 transition px-1 py-0.5 rounded active:bg-gray-100 text-base leading-none font-bold tracking-tighter"
-                            title="메뉴"
-                          >
-                            ···
-                          </button>
-                        )}
-                        {openMenuId === project.id && (
-                          <div className="absolute left-0 top-7 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden min-w-[120px]">
+                  {/* ··· 버튼 — blur 레이어 위, 항상 활성 */}
+                  <div className="absolute top-3 right-3 z-10" onClick={(e) => e.stopPropagation()}>
+                    {isEditing ? (
+                      <button
+                        onClick={(e) => saveProjectName(e, project)}
+                        className="text-indigo-500 hover:text-indigo-700 transition p-1 rounded active:bg-indigo-50"
+                        title="저장"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === project.id ? null : project.id)}
+                        className="text-gray-400 hover:text-gray-600 transition px-1 py-0.5 rounded active:bg-gray-100 text-base leading-none font-bold tracking-tighter"
+                        title="메뉴"
+                      >
+                        ···
+                      </button>
+                    )}
+                    {openMenuId === project.id && (
+                      <div className="absolute right-0 top-7 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                        {!isClosed && (
+                          <>
                             <button
                               disabled={projIdx === 0}
                               onClick={(e) => { e.stopPropagation(); moveProject(project, 'up'); setOpenMenuId(null) }}
-                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+                              style={menuStyle}
+                              className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
                             >
-                              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
                               </svg>
-                              위로 이동
+                              UP ↑
                             </button>
                             <button
-                              disabled={projIdx === projects.length - 1}
+                              disabled={projIdx === activeProjects.length - 1}
                               onClick={(e) => { e.stopPropagation(); moveProject(project, 'down'); setOpenMenuId(null) }}
-                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+                              style={menuStyle}
+                              className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
                             >
-                              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                               </svg>
-                              아래로 이동
+                              DOWN ↓
                             </button>
-                            <div className="border-t border-gray-100" />
+                            <div className="border-t border-orange-100" />
                             <button
                               onClick={(e) => { startEditProject(e, project); setOpenMenuId(null) }}
-                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                              style={menuStyle}
+                              className={menuBtn}
                             >
-                              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
                               </svg>
-                              수정
+                              Edit
                             </button>
                             <button
                               onClick={(e) => { deleteProject(e, project); setOpenMenuId(null) }}
-                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 active:bg-red-100"
+                              style={menuStyle}
+                              className={menuBtn}
                             >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
-                              삭제
+                              Delete
                             </button>
-                          </div>
+                            <div className="border-t border-orange-100" />
+                            <button
+                              onClick={(e) => { closeProject(e, project); setOpenMenuId(null) }}
+                              style={menuStyle}
+                              className={menuBtn}
+                            >
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              Close (END)
+                            </button>
+                          </>
+                        )}
+                        {isClosed && (
+                          <button
+                            onClick={(e) => { continueProject(e, project); setOpenMenuId(null) }}
+                            style={menuStyle}
+                            className={menuBtn}
+                          >
+                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Continue
+                          </button>
                         )}
                       </div>
-                    </div>
-
-                    {/* 투두 항목들 */}
-                    {total === 0 && (
-                      <p className="text-xs text-gray-400 ml-1">할 일을 추가해보세요</p>
                     )}
-                    {projectTodos.map((todo) => {
-                      const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
-                      return (
-                        <div key={todo.id} className="flex items-center gap-1">
-                          <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
-                            ({todo.category || '기타'})
-                          </span>
-                          <p className={`flex-1 text-xs break-all leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                            {todo.category === '중요' && <span className="text-amber-400 font-bold mr-0.5">★</span>}
-                            {todo.text}
-                          </p>
-                          {todo.author && (() => {
-                            const phone = getAuthorPhone(todo.author)
-                            return phone ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setCallTarget({ name: todo.author, phone })
-                                }}
-                                className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)} active:opacity-70 transition`}
-                                title={`${todo.author} 에게 전화`}
-                              >
-                                {todo.author}
-                              </button>
-                            ) : (
-                              <span className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
-                                {todo.author}
-                              </span>
-                            )
-                          })()}
-                        </div>
-                      )
-                    })}
                   </div>
-
-                  {/* 진행률 바 */}
-                  {total > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <div className="flex items-center justify-between text-xs text-gray-400">
-                        <span>{done} / {total} 완료</span>
-                        <span>{pct}%</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-1.5">
-                        <div
-                          className="h-1.5 rounded-full transition-all"
-                          style={{ width: `${pct}%`, backgroundColor: '#E8694A' }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               )
             })}
