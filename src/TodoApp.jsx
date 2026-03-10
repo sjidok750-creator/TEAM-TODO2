@@ -139,6 +139,7 @@ export default function TodoApp({ nickname, onChangeNickname }) {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all') // all | active | done
   const [selectedDate, setSelectedDate] = useState(null)
+  const [editingTodo, setEditingTodo] = useState(null) // { id, text, origText, workType }
   const inputRef = useRef(null)
 
   // Firestore real-time listener
@@ -171,6 +172,14 @@ export default function TodoApp({ nickname, onChangeNickname }) {
 
   async function deleteTodo(id) {
     await deleteDoc(doc(db, COLLECTION, id))
+    setEditingTodo(null)
+  }
+
+  async function saveTodo() {
+    const text = editingTodo.text.trim()
+    if (!text) return
+    await updateDoc(doc(db, COLLECTION, editingTodo.id), { text })
+    setEditingTodo(null)
   }
 
   function handleKeyDown(e) {
@@ -193,8 +202,60 @@ export default function TodoApp({ nickname, onChangeNickname }) {
   const doneCount = todos.filter((t) => t.done).length
   const totalCount = todos.length
 
+  const monoOrange = { fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }
+  const isModified = editingTodo && editingTodo.text.trim() !== editingTodo.origText
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
+
+      {/* Todo 편집 팝업 */}
+      {editingTodo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setEditingTodo(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-5 w-80 max-w-sm flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-bold" style={monoOrange}>Edit</p>
+            <textarea
+              autoFocus
+              value={editingTodo.text}
+              onChange={(e) => setEditingTodo(prev => ({ ...prev, text: e.target.value }))}
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 resize-none leading-relaxed"
+              style={{ focusRingColor: '#E8694A' }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => deleteTodo(editingTodo.id)}
+                className="flex-1 py-2.5 rounded-xl text-sm border border-current transition active:scale-95 hover:bg-orange-50"
+                style={monoOrange}
+              >
+                삭제
+              </button>
+              {isModified ? (
+                <button
+                  onClick={saveTodo}
+                  className="flex-1 py-2.5 rounded-xl text-sm text-white transition active:scale-95"
+                  style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  수정
+                </button>
+              ) : (
+                <button
+                  onClick={() => setEditingTodo(null)}
+                  className="flex-1 py-2.5 rounded-xl text-sm border border-current transition active:scale-95 hover:bg-orange-50"
+                  style={monoOrange}
+                >
+                  닫기
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -324,13 +385,14 @@ export default function TodoApp({ nickname, onChangeNickname }) {
           {filtered.map((todo) => (
             <div
               key={todo.id}
-              className={`bg-white rounded-xl shadow-sm px-4 py-3 flex items-start gap-3 transition group ${
+              onClick={() => setEditingTodo({ id: todo.id, text: todo.text, origText: todo.text, workType: todo.workType })}
+              className={`bg-white rounded-xl shadow-sm px-4 py-3 flex items-start gap-3 transition cursor-pointer hover:shadow-md ${
                 todo.done ? 'opacity-60' : ''
               }`}
             >
               {/* Checkbox */}
               <button
-                onClick={() => toggleDone(todo)}
+                onClick={(e) => { e.stopPropagation(); toggleDone(todo) }}
                 className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${
                   todo.done
                     ? 'bg-indigo-500 border-indigo-500'
@@ -372,17 +434,6 @@ export default function TodoApp({ nickname, onChangeNickname }) {
                   )}
                 </div>
               </div>
-
-              {/* Delete */}
-              <button
-                onClick={() => deleteTodo(todo.id)}
-                className="text-gray-300 hover:text-red-400 transition opacity-0 group-hover:opacity-100 shrink-0 mt-0.5"
-                title="삭제"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </div>
           ))}
         </div>

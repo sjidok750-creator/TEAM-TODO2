@@ -231,6 +231,7 @@ export default function ProjectList({ onSelectProject }) {
   const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [noticeText, setNoticeText] = useState('')
   const [viewNotice, setViewNotice] = useState(null)
+  const [editNoticeText, setEditNoticeText] = useState('')
   const [uploading, setUploading] = useState(false)
   const [fileInputKey, setFileInputKey] = useState(0)
   const [downloadingId, setDownloadingId] = useState(null)
@@ -397,6 +398,13 @@ export default function ProjectList({ onSelectProject }) {
 
   async function deleteNotice(notice) {
     await deleteDoc(doc(db, 'notices', notice.id))
+    setViewNotice(null)
+  }
+
+  async function saveNotice() {
+    const text = editNoticeText.trim()
+    if (!text) return
+    await updateDoc(doc(db, 'notices', viewNotice.id), { text })
     setViewNotice(null)
   }
 
@@ -904,42 +912,64 @@ ${projectBlocks}
         </div>
       )}
 
-      {/* View Notice Modal */}
-      {viewNotice && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setViewNotice(null)}
-        >
+      {/* View / Edit Notice Modal */}
+      {viewNotice && (() => {
+        const noticeModified = editNoticeText.trim() !== viewNotice.text
+        const monoOrange = { fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }
+        return (
           <div
-            className="bg-white rounded-2xl shadow-xl p-5 w-80 max-w-sm"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            onClick={() => setViewNotice(null)}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
-                <path d="M12 3L22 21H2L12 3Z" fill="#E8694A"/>
-                <path d="M12 9.5V15" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                <circle cx="12" cy="18" r="1.1" fill="white"/>
-              </svg>
-              <p className="text-sm font-bold text-gray-800">공지사항</p>
-            </div>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mb-5">{viewNotice.text}</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewNotice(null)}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 transition active:scale-95"
-              >
-                닫기
-              </button>
-              <button
-                onClick={() => setConfirmDialog({ message: '공지를 삭제하시겠습니까?', onConfirm: () => deleteNotice(viewNotice) })}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition active:scale-95"
-              >
-                삭제
-              </button>
+            <div
+              className="bg-white rounded-2xl shadow-xl p-5 w-80 max-w-sm flex flex-col gap-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 3L22 21H2L12 3Z" fill="#E8694A"/>
+                  <path d="M12 9.5V15" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="12" cy="18" r="1.1" fill="white"/>
+                </svg>
+                <p className="text-sm font-bold" style={monoOrange}>공지사항</p>
+              </div>
+              <textarea
+                autoFocus
+                value={editNoticeText}
+                onChange={(e) => setEditNoticeText(e.target.value)}
+                rows={5}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 resize-none leading-relaxed"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmDialog({ message: '공지를 삭제하시겠습니까?', onConfirm: () => deleteNotice(viewNotice) })}
+                  className="flex-1 py-2.5 rounded-xl text-sm border border-current transition active:scale-95 hover:bg-orange-50"
+                  style={monoOrange}
+                >
+                  삭제
+                </button>
+                {noticeModified ? (
+                  <button
+                    onClick={saveNotice}
+                    className="flex-1 py-2.5 rounded-xl text-sm text-white transition active:scale-95"
+                    style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    수정
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setViewNotice(null)}
+                    className="flex-1 py-2.5 rounded-xl text-sm border border-current transition active:scale-95 hover:bg-orange-50"
+                    style={monoOrange}
+                  >
+                    닫기
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
         {/* Week Calendar */}
@@ -962,7 +992,7 @@ ${projectBlocks}
               {notices.map((notice) => (
                 <div
                   key={notice.id}
-                  onClick={() => setViewNotice(notice)}
+                  onClick={() => { setViewNotice(notice); setEditNoticeText(notice.text) }}
                   className="cursor-pointer flex items-center gap-1 leading-5 hover:text-indigo-600 transition min-w-0"
                   title={notice.text}
                 >
