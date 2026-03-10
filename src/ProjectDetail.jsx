@@ -47,6 +47,8 @@ export default function ProjectDetail({ project, onBack }) {
   const [draggedId, setDraggedId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const inputRef = useRef(null)
+  const listRef = useRef(null)
+  const touchDragRef = useRef({ id: null, overId: null })
   const editTodoRef = useRef(null)
   const prevTodoIdsRef = useRef(null)
   const { addToast, ToastContainer } = useToast()
@@ -132,6 +134,53 @@ export default function ProjectDetail({ project, onBack }) {
     setDraggedId(null)
     setDragOverId(null)
   }
+
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+    function onTouchMove(e) {
+      if (!touchDragRef.current.id) return
+      e.preventDefault()
+      const touch = e.touches[0]
+      const items = el.querySelectorAll('[data-todoid]')
+      let found = null
+      for (const item of items) {
+        const rect = item.getBoundingClientRect()
+        if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+          const id = item.dataset.todoid
+          if (id !== touchDragRef.current.id) found = id
+          break
+        }
+      }
+      if (found !== touchDragRef.current.overId) {
+        touchDragRef.current.overId = found
+        setDragOverId(found)
+      }
+    }
+    function onTouchEnd() {
+      const { id: fromId, overId: toId } = touchDragRef.current
+      touchDragRef.current = { id: null, overId: null }
+      setDraggedId(null)
+      setDragOverId(null)
+      if (!fromId || !toId || fromId === toId) return
+      setTodos(prev => {
+        const fromIdx = prev.findIndex(t => t.id === fromId)
+        const toIdx = prev.findIndex(t => t.id === toId)
+        if (fromIdx === -1 || toIdx === -1) return prev
+        const arr = [...prev]
+        const [moved] = arr.splice(fromIdx, 1)
+        arr.splice(toIdx, 0, moved)
+        Promise.all(arr.map((t, i) => updateDoc(doc(db, 'todos', t.id), { order: i * 1000 })))
+        return arr
+      })
+    }
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    return () => {
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
 
   async function handleDrop(targetId) {
     if (!draggedId || draggedId === targetId) { resetDrag(); return }
@@ -326,6 +375,7 @@ export default function ProjectDetail({ project, onBack }) {
 
         {/* Todo list */}
         <div
+          ref={listRef}
           className="bg-white rounded-lg border border-gray-100"
           onDragOver={(e) => e.preventDefault()}
         >
@@ -351,7 +401,9 @@ export default function ProjectDetail({ project, onBack }) {
             return (
               <div
                 key={todo.id}
+                data-todoid={todo.id}
                 draggable={!isEditing}
+                onTouchStart={() => { touchDragRef.current.id = todo.id; setDraggedId(todo.id) }}
                 onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedId(todo.id) }}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(todo.id) }}
                 onDrop={(e) => { e.preventDefault(); handleDrop(todo.id) }}
@@ -364,16 +416,6 @@ export default function ProjectDetail({ project, onBack }) {
                   isDragOver ? 'border-t-2 border-indigo-400' : ''
                 }`}
               >
-                {/* Drag handle */}
-                <div
-                  className="shrink-0 cursor-grab text-gray-300 hover:text-gray-500 active:cursor-grabbing select-none mt-0.5"
-                  title="드래그하여 순서 변경"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 6h2v2H8V6zm6 0h2v2h-2V6zM8 11h2v2H8v-2zm6 0h2v2h-2v-2zM8 16h2v2H8v-2zm6 0h2v2h-2v-2z"/>
-                  </svg>
-                </div>
-
                 {/* Checkbox */}
                 <button
                   onClick={() => !isEditing && toggleDone(todo)}
