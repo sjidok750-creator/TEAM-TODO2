@@ -232,7 +232,6 @@ export default function ProjectList({ onSelectProject }) {
   const [uploading, setUploading] = useState(false)
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
-  const fileInputRef = useRef(null)
 
   const closeMenu = useCallback(() => setOpenMenuId(null), [])
   useEffect(() => {
@@ -500,7 +499,12 @@ export default function ProjectList({ onSelectProject }) {
             className="bg-white rounded-2xl shadow-xl p-5 w-80 max-w-sm"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-sm font-bold text-gray-800 mb-3">공지사항</p>
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ color: '#E8694A' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              <p className="text-sm font-bold text-gray-800">공지사항</p>
+            </div>
             <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mb-5">{viewNotice.text}</p>
             <div className="flex gap-2">
               <button
@@ -542,10 +546,13 @@ export default function ProjectList({ onSelectProject }) {
                 <div
                   key={notice.id}
                   onClick={() => setViewNotice(notice)}
-                  className="cursor-pointer text-xs text-gray-700 truncate leading-5 hover:text-indigo-600 transition"
+                  className="cursor-pointer flex items-center gap-1 leading-5 hover:text-indigo-600 transition min-w-0"
                   title={notice.text}
                 >
-                  {notice.text}
+                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ color: '#E8694A' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                  <span className="text-xs text-gray-700 truncate">{notice.text}</span>
                 </div>
               ))}
             </div>
@@ -553,19 +560,17 @@ export default function ProjectList({ onSelectProject }) {
 
           {/* 공유파일 row */}
           <div className="flex items-center gap-2 px-3 py-2 flex-wrap">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="shrink-0 text-xs font-bold text-gray-700 bg-gray-100 border border-gray-300 rounded px-2 py-0.5 hover:bg-gray-200 transition whitespace-nowrap disabled:opacity-50"
+            <label
+              className={`shrink-0 text-xs font-bold text-gray-700 bg-gray-100 border border-gray-300 rounded px-2 py-0.5 hover:bg-gray-200 transition whitespace-nowrap cursor-pointer select-none ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
             >
               {uploading ? '업로드중...' : '공유파일'}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
+              <input
+                type="file"
+                className="hidden"
+                onChange={handleFileUpload}
+                disabled={uploading}
+              />
+            </label>
             {sharedFiles.map((file) => (
               <div
                 key={file.id}
