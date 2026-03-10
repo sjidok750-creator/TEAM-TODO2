@@ -43,6 +43,7 @@ export default function ProjectDetail({ project, onBack }) {
   const [editingText, setEditingText] = useState('')
   const [editingCategory, setEditingCategory] = useState('외업')
   const [editingAuthor, setEditingAuthor] = useState('')
+  const [confirmDialog, setConfirmDialog] = useState(null) // { message, onConfirm }
   const [draggedId, setDraggedId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const inputRef = useRef(null)
@@ -158,6 +159,41 @@ export default function ProjectDetail({ project, onBack }) {
   return (
     <div className="min-h-screen bg-gray-50">
       <ToastContainer />
+
+      {/* 삭제 확인 모달 */}
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 min-w-[260px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1rem' }}>
+              {confirmDialog.message}
+            </p>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null) }}
+                className="flex-1 py-2 rounded-xl text-white text-sm"
+                style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto flex items-center gap-2 px-4 py-2.5">
@@ -449,7 +485,7 @@ export default function ProjectDetail({ project, onBack }) {
                       </svg>
                     </button>
                     <button
-                      onClick={() => deleteTodo(todo.id)}
+                      onClick={() => setConfirmDialog({ message: 'Delete this item?', onConfirm: () => deleteTodo(todo.id) })}
                       className="text-gray-300 hover:text-red-400 transition"
                       title="삭제"
                     >

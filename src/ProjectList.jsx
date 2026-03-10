@@ -216,6 +216,7 @@ function formatFileName(name) {
 
 export default function ProjectList({ onSelectProject }) {
   const [callTarget, setCallTarget] = useState(null) // { name, phone }
+  const [confirmDialog, setConfirmDialog] = useState(null) // { message, onConfirm }
   const [projects, setProjects] = useState([])
   const [todos, setTodos] = useState([])
   const [notices, setNotices] = useState([])
@@ -299,12 +300,16 @@ export default function ProjectList({ onSelectProject }) {
     })
   }
 
-  async function deleteProject(e, project) {
+  function deleteProject(e, project) {
     e.stopPropagation()
-    if (!window.confirm(`"${project.name}" 용역을 삭제하면 모든 투두가 함께 삭제됩니다.\n계속하시겠습니까?`)) return
-    const projectTodos = todos.filter((t) => t.projectId === project.id)
-    await Promise.all(projectTodos.map((t) => deleteDoc(doc(db, 'todos', t.id))))
-    await deleteDoc(doc(db, 'projects', project.id))
+    setConfirmDialog({
+      message: `"${project.name}" 삭제하시겠습니까?`,
+      onConfirm: async () => {
+        const projectTodos = todos.filter((t) => t.projectId === project.id)
+        await Promise.all(projectTodos.map((t) => deleteDoc(doc(db, 'todos', t.id))))
+        await deleteDoc(doc(db, 'projects', project.id))
+      },
+    })
   }
 
   function startEditProject(e, project) {
@@ -532,22 +537,12 @@ export default function ProjectList({ onSelectProject }) {
         </tr>`
       }).join('')
 
-      const progressBar = total > 0 ? `
-        <div style="display:flex;align-items:center;gap:8px;padding:3px 8px;background:#fafafa;border-bottom:1px solid #e5e7eb;">
-          <div style="flex:1;height:4px;background:#e5e7eb;border-radius:2px;overflow:hidden;">
-            <div style="width:${pct}%;height:100%;background:#4f46e5;border-radius:2px;"></div>
-          </div>
-          <span style="font-size:7.5pt;color:#9ca3af;white-space:nowrap;">${done} / ${total} 완료</span>
-        </div>` : ''
-
       return `<div style="margin-bottom:8px;border:1px solid #d1d5db;border-radius:3px;overflow:hidden;page-break-inside:avoid;">
         <div style="display:flex;align-items:center;gap:8px;background:#f3f4f6;padding:5px 8px;border-bottom:1px solid #d1d5db;">
           <span style="font-weight:700;font-size:9pt;color:#374151;min-width:18px;">${idx + 1}</span>
-          <span style="font-weight:700;font-size:9pt;flex:1;">${project.name}</span>
-          ${project.completionDate ? `<span style="font-size:8pt;color:#6b7280;white-space:nowrap;">준공 ${project.completionDate}</span>` : ''}
-          <span style="font-size:8pt;font-weight:700;color:#4f46e5;white-space:nowrap;min-width:32px;text-align:right;">${pct}%</span>
+          <span style="font-weight:700;font-size:9pt;flex:1;">${project.name}${project.completionDate ? `<span style="font-weight:400;font-size:8pt;color:#6b7280;margin-left:6px;">(준공 ${project.completionDate})</span>` : ''}</span>
+          <span style="font-size:8pt;font-weight:700;color:#E8694A;white-space:nowrap;min-width:32px;text-align:right;">${pct}%</span>
         </div>
-        ${progressBar}
         ${ptodos.length > 0
           ? `<table style="width:100%;border-collapse:collapse;"><tbody>${todoRows}</tbody></table>`
           : `<p style="font-size:8pt;color:#9ca3af;padding:4px 8px;">등록된 투두가 없습니다</p>`}
@@ -645,6 +640,41 @@ ${projectBlocks}
           </div>
         </div>
       )}
+
+      {/* 삭제 확인 모달 */}
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 min-w-[260px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1rem', textAlign: 'center' }}>
+              {confirmDialog.message}
+            </p>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null) }}
+                className="flex-1 py-2 rounded-xl text-white text-sm"
+                style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 py-2.5 max-w-2xl mx-auto flex items-center justify-between">
@@ -836,7 +866,7 @@ ${projectBlocks}
                 닫기
               </button>
               <button
-                onClick={() => deleteNotice(viewNotice)}
+                onClick={() => setConfirmDialog({ message: '공지를 삭제하시겠습니까?', onConfirm: () => deleteNotice(viewNotice) })}
                 className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition active:scale-95"
               >
                 삭제
@@ -910,7 +940,7 @@ ${projectBlocks}
                   {viewingFileId === file.id ? '로딩중...' : formatFileName(file.name)}
                 </button>
                 <button
-                  onClick={() => deleteSharedFile(file)}
+                  onClick={() => setConfirmDialog({ message: `"${file.name}" 파일을 삭제하시겠습니까?`, onConfirm: () => deleteSharedFile(file) })}
                   className="text-gray-300 hover:text-red-400 transition shrink-0 leading-none"
                   title="삭제"
                 >
