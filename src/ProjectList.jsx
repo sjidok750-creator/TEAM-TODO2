@@ -124,47 +124,6 @@ function WeekCalendar() {
 
   return (
     <>
-      {/* 전화 확인 모달 */}
-      {callTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
-          onClick={() => setCallTarget(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 min-w-[260px]"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1.15rem', letterSpacing: '-0.01em' }}>
-              Call this number?
-            </p>
-            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1rem' }}>
-              {callTarget.name}
-            </p>
-            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1.05rem', letterSpacing: '0.05em' }}>
-              {callTarget.phone}
-            </p>
-            <div className="flex gap-3 mt-1 w-full">
-              <button
-                onClick={() => setCallTarget(null)}
-                className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                Cancel
-              </button>
-              <a
-                href={`tel:${callTarget.phone.replace(/-/g, '')}`}
-                onClick={() => setCallTarget(null)}
-                className="flex-1 py-2 rounded-xl text-white text-sm text-center"
-                style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                Call
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
       <div className="bg-white rounded-lg border border-gray-100 px-4 pt-3 pb-4">
         <div className="flex items-center justify-between mb-3">
           <button
@@ -646,6 +605,46 @@ ${projectBlocks}
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* 전화 확인 모달 */}
+      {callTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setCallTarget(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 min-w-[260px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1.15rem' }}>
+              Call this number?
+            </p>
+            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1rem' }}>
+              {callTarget.name}
+            </p>
+            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1.05rem', letterSpacing: '0.05em' }}>
+              {callTarget.phone}
+            </p>
+            <div className="flex gap-3 mt-1 w-full">
+              <button
+                onClick={() => setCallTarget(null)}
+                className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Cancel
+              </button>
+              <a
+                href={`tel:${callTarget.phone.replace(/-/g, '')}`}
+                onClick={() => setCallTarget(null)}
+                className="flex-1 py-2 rounded-xl text-white text-sm text-center"
+                style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                Call
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 py-2.5 max-w-2xl mx-auto flex items-center justify-between">
