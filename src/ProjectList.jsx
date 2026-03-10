@@ -230,6 +230,7 @@ export default function ProjectList({ onSelectProject }) {
   const [noticeText, setNoticeText] = useState('')
   const [viewNotice, setViewNotice] = useState(null)
   const [uploading, setUploading] = useState(false)
+  const [fileInputKey, setFileInputKey] = useState(0)
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
 
@@ -358,7 +359,7 @@ export default function ProjectList({ onSelectProject }) {
       alert('파일 업로드에 실패했습니다. Firebase Storage 설정을 확인하세요.')
     } finally {
       setUploading(false)
-      if (e.target) e.target.value = ''
+      setFileInputKey(k => k + 1)
     }
   }
 
@@ -370,6 +371,96 @@ export default function ProjectList({ onSelectProject }) {
       console.warn('Storage 파일 삭제 실패:', err)
     }
     await deleteDoc(doc(db, 'sharedFiles', file.id))
+  }
+
+  function handleExportPDF() {
+    const now = new Date()
+    const month = now.getMonth() + 1
+    const dateStr = `${now.getFullYear()}-${String(month).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+
+    const catColors = {
+      '외업': { text: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+      '내업': { text: '#2563eb', bg: '#eff6ff', border: '#93c5fd' },
+      '중요': { text: '#d97706', bg: '#fffbeb', border: '#fcd34d' },
+      '기타': { text: '#16a34a', bg: '#f0fdf4', border: '#86efac' },
+    }
+    const authorColors = {
+      '이상국': { text: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+      '문남곤': { text: '#2563eb', bg: '#eff6ff', border: '#93c5fd' },
+      '김종민': { text: '#059669', bg: '#ecfdf5', border: '#6ee7b7' },
+      '나원진': { text: '#9333ea', bg: '#faf5ff', border: '#d8b4fe' },
+      '하태욱': { text: '#ea580c', bg: '#fff7ed', border: '#fdba74' },
+      '김태현': { text: '#0d9488', bg: '#f0fdfa', border: '#5eead4' },
+      '신창민': { text: '#4f46e5', bg: '#eef2ff', border: '#a5b4fc' },
+      '권여린': { text: '#db2777', bg: '#fdf2f8', border: '#f9a8d4' },
+    }
+
+    const projectBlocks = projects.map((project, idx) => {
+      const ptodos = getProjectTodos(project.id)
+      const total = ptodos.length
+      const done = ptodos.filter(t => t.done).length
+      const pct = total ? Math.round((done / total) * 100) : 0
+
+      const todoRows = ptodos.map(todo => {
+        const cat = todo.category || '기타'
+        const cc = catColors[cat] || catColors['기타']
+        const ac = todo.author ? (authorColors[todo.author] || { text: '#6b7280', bg: '#f9fafb', border: '#d1d5db' }) : null
+        const doneStyle = todo.done ? 'text-decoration:line-through;color:#9ca3af;' : ''
+        return `<tr style="border-bottom:1px solid #f3f4f6;${todo.done ? 'opacity:0.6;' : ''}">
+          <td style="width:46px;padding:2px 6px;vertical-align:middle;">
+            <span style="display:inline-block;font-size:7.5pt;font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap;color:${cc.text};background:${cc.bg};border:1px solid ${cc.border};">${cat === '중요' ? '★ ' : ''}${cat}</span>
+          </td>
+          <td style="padding:2px 6px;font-size:8.5pt;word-break:break-all;${doneStyle}">${todo.text}</td>
+          <td style="width:42px;padding:2px 6px;text-align:right;vertical-align:middle;">
+            ${ac ? `<span style="display:inline-block;font-size:7pt;font-weight:600;padding:1px 5px;border-radius:10px;white-space:nowrap;color:${ac.text};background:${ac.bg};border:1px solid ${ac.border};">${todo.author}</span>` : ''}
+          </td>
+        </tr>`
+      }).join('')
+
+      const progressBar = total > 0 ? `
+        <div style="display:flex;align-items:center;gap:8px;padding:3px 8px;background:#fafafa;border-bottom:1px solid #e5e7eb;">
+          <div style="flex:1;height:4px;background:#e5e7eb;border-radius:2px;overflow:hidden;">
+            <div style="width:${pct}%;height:100%;background:#4f46e5;border-radius:2px;"></div>
+          </div>
+          <span style="font-size:7.5pt;color:#9ca3af;white-space:nowrap;">${done} / ${total} 완료</span>
+        </div>` : ''
+
+      return `<div style="margin-bottom:8px;border:1px solid #d1d5db;border-radius:3px;overflow:hidden;page-break-inside:avoid;">
+        <div style="display:flex;align-items:center;gap:8px;background:#f3f4f6;padding:5px 8px;border-bottom:1px solid #d1d5db;">
+          <span style="font-weight:700;font-size:9pt;color:#374151;min-width:18px;">${idx + 1}</span>
+          <span style="font-weight:700;font-size:9pt;flex:1;">${project.name}</span>
+          ${project.completionDate ? `<span style="font-size:8pt;color:#6b7280;white-space:nowrap;">준공 ${project.completionDate}</span>` : ''}
+          <span style="font-size:8pt;font-weight:700;color:#4f46e5;white-space:nowrap;min-width:32px;text-align:right;">${pct}%</span>
+        </div>
+        ${progressBar}
+        ${ptodos.length > 0
+          ? `<table style="width:100%;border-collapse:collapse;"><tbody>${todoRows}</tbody></table>`
+          : `<p style="font-size:8pt;color:#9ca3af;padding:4px 8px;">등록된 투두가 없습니다</p>`}
+      </div>`
+    }).join('')
+
+    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+<title>${month}월 과업진행현황(W.I.P)</title>
+<style>
+  @page { size: A4; margin: 18mm 15mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Malgun Gothic','Apple SD Gothic Neo','Nanum Gothic',sans-serif; font-size: 9pt; color: #111; background: white; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style></head><body>
+<div style="text-align:center;padding-bottom:10px;border-bottom:2.5px solid #111;margin-bottom:12px;">
+  <div style="font-size:14pt;font-weight:700;letter-spacing:1px;margin-bottom:3px;">${month}월 과업진행현황(W.I.P)</div>
+  <div style="font-size:8pt;color:#666;">출력일: ${dateStr} &nbsp;|&nbsp; 총 ${projects.length}건</div>
+</div>
+${projectBlocks}
+<div style="margin-top:14px;padding-top:6px;border-top:1px solid #d1d5db;font-size:7.5pt;color:#9ca3af;text-align:right;">* 본 문서는 팀 투두 시스템에서 자동 생성되었습니다</div>
+</body></html>`
+
+    const win = window.open('', '_blank')
+    if (!win) { alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.'); return }
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => { win.print() }, 400)
   }
 
   return (
@@ -569,6 +660,7 @@ export default function ProjectList({ onSelectProject }) {
             >
               {uploading ? '업로드중...' : '공유파일'}
               <input
+                key={fileInputKey}
                 type="file"
                 className="hidden"
                 onChange={handleFileUpload}
@@ -751,6 +843,21 @@ export default function ProjectList({ onSelectProject }) {
                 </div>
               )
             })}
+          </div>
+          {/* PDF 내보내기 버튼 */}
+          <div className="flex justify-end mt-2">
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2.5 py-1 hover:bg-orange-100 transition active:scale-95"
+              title="WIP 현황을 PDF로 내보내기"
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3L22 21H2L12 3Z" fill="#E8694A"/>
+                <path d="M12 9.5V15" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                <circle cx="12" cy="18" r="1.1" fill="white"/>
+              </svg>
+              W.I.P PDF
+            </button>
           </div>
         </div>
       </main>
