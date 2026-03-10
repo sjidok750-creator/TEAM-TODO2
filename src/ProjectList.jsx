@@ -14,7 +14,24 @@ import {
 } from 'firebase/firestore'
 import { db } from './firebase'
 
-const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+// 한국 공휴일 (고정)
+const FIXED_HOLIDAYS = {
+  '01-01': '신정', '03-01': '삼일절', '05-05': '어린이날',
+  '06-06': '현충일', '08-15': '광복절', '10-03': '개천절',
+  '10-09': '한글날', '12-25': '크리스마스',
+}
+// 음력 공휴일 (연도별 양력)
+const LUNAR_HOLIDAYS = {
+  2025: new Set(['2025-01-28','2025-01-29','2025-01-30','2025-05-06','2025-10-05','2025-10-06','2025-10-07','2025-10-08']),
+  2026: new Set(['2026-02-15','2026-02-16','2026-02-17','2026-02-18','2026-09-23','2026-09-24','2026-09-25','2026-09-26']),
+}
+function isHoliday(year, month, day) {
+  const mm = String(month + 1).padStart(2, '0')
+  const dd = String(day).padStart(2, '0')
+  if (FIXED_HOLIDAYS[`${mm}-${dd}`]) return true
+  const ymd = `${year}-${mm}-${dd}`
+  return LUNAR_HOLIDAYS[year]?.has(ymd) ?? false
+}
 
 function MonthCalendarModal({ onClose }) {
   const today = new Date()
@@ -23,8 +40,7 @@ function MonthCalendarModal({ onClose }) {
 
   const firstDay = new Date(viewYear, viewMonth, 1)
   const lastDay = new Date(viewYear, viewMonth + 1, 0)
-  let startDow = firstDay.getDay() - 1
-  if (startDow < 0) startDow = 6
+  const startDow = firstDay.getDay() // 0=Sun
 
   const cells = []
   for (let i = 0; i < startDow; i++) cells.push(null)
@@ -58,142 +74,38 @@ function MonthCalendarModal({ onClose }) {
           </button>
         </div>
         <div className="grid grid-cols-7 mb-1">
-          {DAY_LABELS.map(d => (
-            <div key={d} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
+          {['일','월','화','수','목','금','토'].map((d, i) => (
+            <div key={d} className={`text-center text-[11px] font-semibold py-1 ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-gray-400'}`}>{d}</div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-y-1">
+        <div className="grid grid-cols-7 gap-y-0.5">
           {cells.map((day, i) => {
             if (!day) return <div key={i} />
+            const dow = new Date(viewYear, viewMonth, day).getDay()
             const isToday = viewYear === today.getFullYear() && viewMonth === today.getMonth() && day === today.getDate()
+            const holiday = isHoliday(viewYear, viewMonth, day)
+            const isSun = dow === 0
+            const isSat = dow === 6
+            const textColor = isToday ? 'text-white' : holiday || isSun ? 'text-red-500' : isSat ? 'text-blue-500' : 'text-gray-700'
             return (
-              <div
-                key={i}
-                className={`flex items-center justify-center w-8 h-8 mx-auto rounded-full text-sm font-medium transition ${
-                  isToday ? 'bg-gray-900 text-white font-bold' : 'text-gray-700 hover:bg-gray-100 cursor-pointer'
-                }`}
-              >
-                {day}
+              <div key={i} className="flex flex-col items-center py-0.5">
+                <span
+                  className={`w-8 h-8 flex items-center justify-center rounded-full text-xs font-medium ${textColor} ${isToday ? 'font-bold' : ''}`}
+                  style={isToday ? { backgroundColor: '#E8694A' } : {}}
+                >
+                  {day}
+                </span>
+                {holiday && !isToday && <span className="w-1 h-1 rounded-full bg-red-400 mt-0.5" />}
               </div>
             )
           })}
         </div>
-        <button onClick={onClose} className="mt-4 w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition">닫기</button>
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-3 text-[11px] text-gray-400">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block"/> 공휴일</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{backgroundColor:'#E8694A'}}/> 오늘</span>
+        </div>
       </div>
     </div>
-  )
-}
-
-function WeekCalendar() {
-  const getToday = () => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    return d
-  }
-
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [selectedDate, setSelectedDate] = useState(() => getToday())
-  const [showMonthCal, setShowMonthCal] = useState(false)
-
-  const today = getToday()
-
-  const baseMonday = (() => {
-    const dow = today.getDay()
-    const offset = dow === 0 ? -6 : 1 - dow
-    const d = new Date(today)
-    d.setDate(today.getDate() + offset)
-    return d
-  })()
-
-  const monday = new Date(baseMonday)
-  monday.setDate(baseMonday.getDate() + weekOffset * 7)
-
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    return d
-  })
-
-  const monthNum = monday.getMonth() + 1
-  const endMonth = days[6].getMonth() + 1
-  const monthLabel = monthNum === endMonth ? `${monthNum}월` : `${monthNum}-${endMonth}월`
-
-  const weekNum = Math.ceil(
-    (monday.getDate() + new Date(monday.getFullYear(), monday.getMonth(), 1).getDay()) / 7
-  )
-
-  return (
-    <>
-      <div className="bg-white rounded-lg border border-gray-100 px-4 pt-3 pb-4">
-        <div className="flex items-center justify-between mb-3">
-          <button
-            onClick={() => setWeekOffset(o => o - 1)}
-            className="p-1.5 rounded-lg hover:bg-gray-100 transition active:scale-95"
-          >
-            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-700">{monthLabel} {weekNum}주차</span>
-            <button
-              onClick={() => setShowMonthCal(true)}
-              className="text-lg leading-none hover:scale-110 transition active:scale-95"
-              title="월 달력 보기"
-            >
-              📅
-            </button>
-            {weekOffset !== 0 && (
-              <button
-                onClick={() => { setWeekOffset(0); setSelectedDate(today) }}
-                className="text-[10px] font-semibold text-indigo-500 border border-indigo-300 rounded px-1.5 py-0.5 hover:bg-indigo-50 transition"
-              >
-                오늘
-              </button>
-            )}
-          </div>
-
-          <button
-            onClick={() => setWeekOffset(o => o + 1)}
-            className="p-1.5 rounded-lg hover:bg-gray-100 transition active:scale-95"
-          >
-            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-7">
-          {days.map((day, i) => {
-            const isToday = day.getTime() === today.getTime()
-            const isSelected = !isToday && day.getTime() === selectedDate.getTime()
-
-            return (
-              <div
-                key={i}
-                onClick={() => setSelectedDate(new Date(day))}
-                className="flex flex-col items-center gap-1 cursor-pointer"
-              >
-                <span className="text-[11px] font-medium text-gray-400 tracking-wide">{DAY_LABELS[i]}</span>
-                <div
-                  className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-semibold transition ${
-                    isToday
-                      ? 'bg-gray-900 text-white'
-                      : isSelected
-                      ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-300'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {day.getDate()}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-      {showMonthCal && <MonthCalendarModal onClose={() => setShowMonthCal(false)} />}
-    </>
   )
 }
 
@@ -229,6 +141,7 @@ export default function ProjectList({ onSelectProject }) {
   const [openMenuId, setOpenMenuId] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
+  const [showMonthCal, setShowMonthCal] = useState(false)
   const [noticeText, setNoticeText] = useState('')
   const [viewNotice, setViewNotice] = useState(null)
   const [editNoticeText, setEditNoticeText] = useState('')
@@ -748,12 +661,32 @@ ${projectBlocks}
         </div>
       )}
 
+      {/* 전체 달력 모달 */}
+      {showMonthCal && <MonthCalendarModal onClose={() => setShowMonthCal(false)} />}
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 py-2.5 max-w-2xl mx-auto flex items-center justify-between">
-          <span className="font-mono text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2 py-0.5">
-            todo list
-          </span>
+          <div className="flex items-center gap-2">
+            {(() => {
+              const d = new Date()
+              const mm = String(d.getMonth() + 1).padStart(2, '0')
+              const dd = String(d.getDate()).padStart(2, '0')
+              const dayNames = ['일','월','화','수','목','금','토']
+              return (
+                <span className="text-sm font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }}>
+                  {mm}/{dd}({dayNames[d.getDay()]})
+                </span>
+              )
+            })()}
+            <button
+              onClick={() => setShowMonthCal(true)}
+              className="text-lg leading-none hover:scale-110 transition active:scale-95"
+              title="달력 보기"
+            >
+              📅
+            </button>
+          </div>
           <button
             onClick={() => setShowAddModal(true)}
             className="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm transition active:scale-95"
@@ -972,9 +905,6 @@ ${projectBlocks}
       })()}
 
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-        {/* Week Calendar */}
-        <WeekCalendar />
-
         {/* 공지사항 + 공유파일 */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           {/* 공지사항 row */}
