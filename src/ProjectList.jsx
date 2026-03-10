@@ -1091,8 +1091,8 @@ ${projectBlocks}
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-1.5">
                         <div
-                          className="bg-indigo-500 h-1.5 rounded-full transition-all"
-                          style={{ width: `${pct}%` }}
+                          className="h-1.5 rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: '#E8694A' }}
                         />
                       </div>
                     </div>
