@@ -726,14 +726,14 @@ ${projectBlocks}
                 className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                Cancel
+                {confirmDialog.cancelLabel ?? 'Cancel'}
               </button>
               <button
                 onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null) }}
                 className="flex-1 py-2 rounded-xl text-white text-sm"
                 style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
               >
-                Delete
+                {confirmDialog.confirmLabel ?? 'Delete'}
               </button>
             </div>
           </div>
@@ -1243,6 +1243,8 @@ ${projectBlocks}
                       <button
                         onClick={() => setConfirmDialog({
                           message: 'Continue?',
+                          cancelLabel: 'NO',
+                          confirmLabel: 'YES',
                           onConfirm: () => continueProject({ stopPropagation: () => {} }, project),
                         })}
                         className="text-5xl font-bold tracking-[0.3em] opacity-60 hover:opacity-90 transition active:scale-95"
