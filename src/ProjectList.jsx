@@ -726,9 +726,9 @@ ${projectBlocks}
                   textAlign: 'center',
                 }}
               >
-                <span className="font-bold uppercase block" style={{ fontSize: '10px', letterSpacing: '0.3em', paddingRight: '0px' }}>TODO</span>
+                <span className="font-bold uppercase block" style={{ fontSize: '10px', letterSpacing: '0.3em', marginLeft: '0.3em' }}>TODO</span>
                 <div style={{ width: '100%', height: '1px', backgroundColor: '#E8694A', opacity: 0.6, margin: '3px 0' }} />
-                <span className="font-bold uppercase block" style={{ fontSize: '10px', letterSpacing: '0.3em' }}>LIST</span>
+                <span className="font-bold uppercase block" style={{ fontSize: '10px', letterSpacing: '0.3em', marginLeft: '0.3em' }}>LIST</span>
               </div>
               {showCraft && (
                 <div
