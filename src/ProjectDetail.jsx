@@ -272,7 +272,7 @@ export default function ProjectDetail({ project, onBack }) {
                       onClick={() => setEditingPopup(p => ({ ...p, category: cat }))}
                       className={`px-3 py-1 rounded-lg text-xs font-bold border transition active:scale-95 ${editingPopup.category === cat ? c.badgeClass : 'text-gray-400 border-gray-200 bg-white'}`}
                     >
-                      {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#e53e3e', fontSize: '9px', marginRight: '2px' }}>▲</span>}{cat}
+                      {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#c53030', fontSize: '11px', marginRight: '2px', fontWeight: 'bold' }}>⚠</span>}{cat}
                     </button>
                   )
                 })}
@@ -398,7 +398,7 @@ export default function ProjectDetail({ project, onBack }) {
                 const cfg = CATEGORY_CONFIG[cat]
                 return (
                   <span key={cat} className={`text-xs font-semibold ${cfg.color}`}>
-                    {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#e53e3e', fontSize: '9px', marginRight: '1px' }}>▲</span>}{cat} {count}
+                    {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#c53030', fontSize: '11px', marginRight: '2px', fontWeight: 'bold' }}>⚠</span>}{cat} {count}
                   </span>
                 )
               })}
@@ -422,7 +422,7 @@ export default function ProjectDetail({ project, onBack }) {
                       : 'text-gray-400 border-gray-200 bg-white'
                   }`}
                 >
-                  {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#e53e3e', fontSize: '10px', marginRight: '2px' }}>▲</span>}{cat}
+                  {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#c53030', fontSize: '11px', marginRight: '2px', fontWeight: 'bold' }}>⚠</span>}{cat}
                 </button>
               )
             })}
@@ -554,7 +554,7 @@ export default function ProjectDetail({ project, onBack }) {
 
                 <p className={`flex-1 text-sm leading-snug break-all ${todo.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                   {todo.category === '중요' && <span className="text-amber-400 font-bold mr-1">★</span>}
-                  {todo.category === '현안' && <span style={{ color: '#e53e3e', fontSize: '11px', marginRight: '3px', fontWeight: 'bold' }}>▲</span>}
+                  {todo.category === '현안' && <span style={{ color: '#c53030', fontSize: '13px', marginRight: '3px', fontWeight: 'bold' }}>⚠</span>}
                   {todo.text}
                 </p>
                 {todo.author && (

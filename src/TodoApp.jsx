@@ -320,7 +320,7 @@ export default function TodoApp({ nickname, onChangeNickname }) {
                   workType === key ? `${color} border-current` : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
                 }`}
               >
-                {key === '중요' && '★ '}{key === '현안' && <span style={{ color: '#e53e3e', fontSize: '9px', marginRight: '2px' }}>▲</span>}{label}
+                {key === '중요' && '★ '}{key === '현안' && <span style={{ color: '#c53030', fontSize: '11px', marginRight: '2px', fontWeight: 'bold' }}>⚠</span>}{label}
               </button>
             ))}
           </div>
@@ -403,7 +403,7 @@ export default function TodoApp({ nickname, onChangeNickname }) {
               <div className="flex-1 min-w-0">
                 <p className={`text-sm break-words leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                   {todo.workType === '중요' && <span className="text-amber-400 font-bold mr-1">★</span>}
-                  {todo.workType === '현안' && <span style={{ color: '#e53e3e', fontSize: '11px', marginRight: '3px', fontWeight: 'bold' }}>▲</span>}
+                  {todo.workType === '현안' && <span style={{ color: '#c53030', fontSize: '13px', marginRight: '3px', fontWeight: 'bold' }}>⚠</span>}
                   {todo.text}
                 </p>
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
