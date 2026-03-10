@@ -241,6 +241,8 @@ export default function ProjectList({ onSelectProject }) {
   const [editingDate, setEditingDate] = useState('')
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
+  const projListRef = useRef(null)
+  const touchProjRef = useRef({ id: null, overId: null })
 
   const closeMenu = useCallback(() => setOpenMenuId(null), [])
   useEffect(() => {
@@ -306,6 +308,53 @@ export default function ProjectList({ onSelectProject }) {
       createdAt: serverTimestamp(),
     })
   }
+
+  useEffect(() => {
+    const el = projListRef.current
+    if (!el) return
+    function onTouchMove(e) {
+      if (!touchProjRef.current.id) return
+      e.preventDefault()
+      const touch = e.touches[0]
+      const items = el.querySelectorAll('[data-projectid]')
+      let found = null
+      for (const item of items) {
+        const rect = item.getBoundingClientRect()
+        if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+          const id = item.dataset.projectid
+          if (id !== touchProjRef.current.id) found = id
+          break
+        }
+      }
+      if (found !== touchProjRef.current.overId) {
+        touchProjRef.current.overId = found
+        setDragOverProjectId(found)
+      }
+    }
+    function onTouchEnd() {
+      const { id: fromId, overId: toId } = touchProjRef.current
+      touchProjRef.current = { id: null, overId: null }
+      setDraggedProjectId(null)
+      setDragOverProjectId(null)
+      if (!fromId || !toId || fromId === toId) return
+      setProjects(prev => {
+        const fromIdx = prev.findIndex(p => p.id === fromId)
+        const toIdx = prev.findIndex(p => p.id === toId)
+        if (fromIdx === -1 || toIdx === -1) return prev
+        const arr = [...prev]
+        const [moved] = arr.splice(fromIdx, 1)
+        arr.splice(toIdx, 0, moved)
+        Promise.all(arr.map((p, i) => updateDoc(doc(db, 'projects', p.id), { order: i * 1000 })))
+        return arr
+      })
+    }
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    return () => {
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
 
   async function handleProjectDrop(targetId) {
     if (!draggedProjectId || draggedProjectId === targetId) {
@@ -983,7 +1032,7 @@ ${projectBlocks}
               W.I.P
             </span>
           </div>
-          <div className="space-y-2">
+          <div ref={projListRef} className="space-y-2">
             {loading && (
               <div className="text-center py-12 text-gray-400 text-sm">불러오는 중...</div>
             )}
@@ -1005,7 +1054,9 @@ ${projectBlocks}
               return (
                 <div
                   key={project.id}
+                  data-projectid={project.id}
                   draggable={!isEditing}
+                  onTouchStart={() => { touchProjRef.current.id = project.id; setDraggedProjectId(project.id) }}
                   onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedProjectId(project.id) }}
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverProjectId(project.id) }}
                   onDrop={(e) => { e.preventDefault(); handleProjectDrop(project.id) }}
