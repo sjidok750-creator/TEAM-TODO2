@@ -1085,13 +1085,14 @@ ${projectBlocks}
                         />
                       </div>
                     ) : (
-                      <p className="text-sm font-bold text-gray-800 leading-snug break-words pr-8">
+                      <p className="text-sm font-bold text-gray-800 leading-snug break-words">
                         용역명 : {project.name}
                       </p>
                     )}
 
                     {/* TODO 목록 */}
                     <div className="mt-1.5 space-y-0.5">
+                      {/* todo list 라벨 + SCD + ··· 버튼 */}
                       <div className="flex items-center gap-1.5">
                         <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo list</span>
                         {project.completionDate && (
@@ -1102,6 +1103,86 @@ ${projectBlocks}
                             SCD {project.completionDate}
                           </span>
                         )}
+                        {/* ··· 버튼 */}
+                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                          {isEditing ? (
+                            <button
+                              onClick={(e) => saveProjectName(e, project)}
+                              className="text-indigo-500 hover:text-indigo-700 transition p-1 rounded active:bg-indigo-50"
+                              title="저장"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setOpenMenuId(openMenuId === project.id ? null : project.id)}
+                              className="text-gray-400 hover:text-gray-600 transition px-1 py-0.5 rounded active:bg-gray-100 text-base leading-none font-bold tracking-tighter"
+                              title="메뉴"
+                            >
+                              ···
+                            </button>
+                          )}
+                          {openMenuId === project.id && (
+                            <div className="absolute left-0 top-7 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                              <button
+                                disabled={projIdx === 0}
+                                onClick={(e) => { e.stopPropagation(); moveProject(project, 'up'); setOpenMenuId(null) }}
+                                style={menuStyle}
+                                className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
+                              >
+                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                                </svg>
+                                UP ↑
+                              </button>
+                              <button
+                                disabled={projIdx === activeProjects.length - 1}
+                                onClick={(e) => { e.stopPropagation(); moveProject(project, 'down'); setOpenMenuId(null) }}
+                                style={menuStyle}
+                                className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
+                              >
+                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                                DOWN ↓
+                              </button>
+                              <div className="border-t border-orange-100" />
+                              <button
+                                onClick={(e) => { startEditProject(e, project); setOpenMenuId(null) }}
+                                style={menuStyle}
+                                className={menuBtn}
+                              >
+                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
+                                </svg>
+                                Edit
+                              </button>
+                              <button
+                                onClick={(e) => { deleteProject(e, project); setOpenMenuId(null) }}
+                                style={menuStyle}
+                                className={menuBtn}
+                              >
+                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Delete
+                              </button>
+                              <div className="border-t border-orange-100" />
+                              <button
+                                onClick={(e) => { closeProject(e, project); setOpenMenuId(null) }}
+                                style={menuStyle}
+                                className={menuBtn}
+                              >
+                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Close (END)
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {total === 0 && (
@@ -1156,114 +1237,21 @@ ${projectBlocks}
                     )}
                   </div>
 
-                  {/* END 오버레이 — closed 시 표시 */}
+                  {/* END 오버레이 — closed 시 클릭 가능 */}
                   {isClosed && (
-                    <div className="absolute inset-0 flex items-center justify-center rounded-lg pointer-events-none">
-                      <span
-                        className="text-5xl font-bold tracking-[0.3em] opacity-60"
-                        style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }}
+                    <div className="absolute inset-0 flex items-center justify-center rounded-lg">
+                      <button
+                        onClick={() => setConfirmDialog({
+                          message: 'Continue?',
+                          onConfirm: () => continueProject({ stopPropagation: () => {} }, project),
+                        })}
+                        className="text-5xl font-bold tracking-[0.3em] opacity-60 hover:opacity-90 transition active:scale-95"
+                        style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A', background: 'none', border: 'none' }}
                       >
                         END
-                      </span>
+                      </button>
                     </div>
                   )}
-
-                  {/* ··· 버튼 — blur 레이어 위, 항상 활성 */}
-                  <div className="absolute top-3 right-3 z-10" onClick={(e) => e.stopPropagation()}>
-                    {isEditing ? (
-                      <button
-                        onClick={(e) => saveProjectName(e, project)}
-                        className="text-indigo-500 hover:text-indigo-700 transition p-1 rounded active:bg-indigo-50"
-                        title="저장"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === project.id ? null : project.id)}
-                        className="text-gray-400 hover:text-gray-600 transition px-1 py-0.5 rounded active:bg-gray-100 text-base leading-none font-bold tracking-tighter"
-                        title="메뉴"
-                      >
-                        ···
-                      </button>
-                    )}
-                    {openMenuId === project.id && (
-                      <div className="absolute right-0 top-7 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
-                        {!isClosed && (
-                          <>
-                            <button
-                              disabled={projIdx === 0}
-                              onClick={(e) => { e.stopPropagation(); moveProject(project, 'up'); setOpenMenuId(null) }}
-                              style={menuStyle}
-                              className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
-                            >
-                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-                              </svg>
-                              UP ↑
-                            </button>
-                            <button
-                              disabled={projIdx === activeProjects.length - 1}
-                              onClick={(e) => { e.stopPropagation(); moveProject(project, 'down'); setOpenMenuId(null) }}
-                              style={menuStyle}
-                              className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
-                            >
-                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                              </svg>
-                              DOWN ↓
-                            </button>
-                            <div className="border-t border-orange-100" />
-                            <button
-                              onClick={(e) => { startEditProject(e, project); setOpenMenuId(null) }}
-                              style={menuStyle}
-                              className={menuBtn}
-                            >
-                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.93l-3 1 1-3a4 4 0 01.93-1.414z" />
-                              </svg>
-                              Edit
-                            </button>
-                            <button
-                              onClick={(e) => { deleteProject(e, project); setOpenMenuId(null) }}
-                              style={menuStyle}
-                              className={menuBtn}
-                            >
-                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                              Delete
-                            </button>
-                            <div className="border-t border-orange-100" />
-                            <button
-                              onClick={(e) => { closeProject(e, project); setOpenMenuId(null) }}
-                              style={menuStyle}
-                              className={menuBtn}
-                            >
-                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                              Close (END)
-                            </button>
-                          </>
-                        )}
-                        {isClosed && (
-                          <button
-                            onClick={(e) => { continueProject(e, project); setOpenMenuId(null) }}
-                            style={menuStyle}
-                            className={menuBtn}
-                          >
-                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Continue
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
                 </div>
               )
             })}
