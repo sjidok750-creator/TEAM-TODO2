@@ -705,9 +705,22 @@ ${projectBlocks}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 py-2.5 max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-lg font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2.5 py-1 leading-tight">
-              TODO LIST
-            </span>
+            {/* TODO LIST 도장 배지 */}
+            <div
+              className="flex flex-col items-center border-2 rounded px-2 py-1 shrink-0"
+              style={{
+                borderColor: '#E8694A',
+                fontFamily: "'JetBrains Mono', monospace",
+                color: '#E8694A',
+                backgroundColor: '#fff7f5',
+                lineHeight: 1,
+                gap: 0,
+              }}
+            >
+              <span className="font-bold tracking-[0.25em] text-[11px] uppercase" style={{ letterSpacing: '0.28em' }}>TODO</span>
+              <div className="w-full my-[3px]" style={{ height: '1px', backgroundColor: '#E8694A', opacity: 0.6 }} />
+              <span className="font-bold tracking-[0.25em] text-[11px] uppercase" style={{ letterSpacing: '0.28em' }}>LIST</span>
+            </div>
             {(() => {
               const d = new Date()
               const mm = String(d.getMonth() + 1).padStart(2, '0')
