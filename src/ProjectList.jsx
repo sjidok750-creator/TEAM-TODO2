@@ -805,14 +805,12 @@ ${projectBlocks}
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg transition active:scale-95 hover:opacity-80 shrink-0"
-            style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A', border: '2px solid #E8694A', background: '#f5f5f5', fontSize: '12px', fontWeight: 700 }}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm transition active:scale-95"
             title="Add New Project"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            Add New Project
           </button>
         </div>
       </header>
@@ -1280,7 +1278,7 @@ ${projectBlocks}
                             </span>
                             <p className={`flex-1 text-xs break-all leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
                               {todo.category === '중요' && <span className="text-amber-400 font-bold mr-0.5">★</span>}
-                              {todo.category === '현안' && <span style={{ color: '#e53e3e', fontSize: '10px', marginRight: '2px', fontWeight: 'bold' }}>▲</span>}
+                              {todo.category === '현안' && <span style={{ color: '#c53030', fontSize: '13px', marginRight: '3px', fontWeight: 'bold' }}>⚠</span>}
                               {todo.text}
                             </p>
                             {todo.author && (() => {
