@@ -105,7 +105,26 @@ export default function ProjectDetail({ project, onBack }) {
   }
 
   async function deleteTodo(id) {
+    const todo = todos.find(t => t.id === id)
     await deleteDoc(doc(db, 'todos', id))
+    if (todo) {
+      addToast('항목이 삭제되었습니다', {
+        icon: '🗑️',
+        duration: 5000,
+        action: {
+          label: '되돌리기',
+          fn: () => addDoc(collection(db, 'todos'), {
+            projectId: todo.projectId,
+            text: todo.text,
+            done: todo.done,
+            category: todo.category || '기타',
+            author: todo.author || '',
+            order: todo.order ?? 0,
+            createdAt: todo.createdAt,
+          }),
+        },
+      })
+    }
   }
 
   function startEditTodo(todo) {
@@ -205,9 +224,47 @@ export default function ProjectDetail({ project, onBack }) {
   const doneCount = todos.filter((t) => t.done).length
   const totalCount = todos.length
 
+  const pullRef = useRef({ startY: 0, pulling: false })
+  const [pullDist, setPullDist] = useState(0)
+
+  function onPullStart(e) {
+    if (window.scrollY === 0) {
+      pullRef.current = { startY: e.touches[0].clientY, pulling: true }
+    }
+  }
+  function onPullMove(e) {
+    if (!pullRef.current.pulling) return
+    const dist = e.touches[0].clientY - pullRef.current.startY
+    if (dist > 0) setPullDist(Math.min(dist, 70))
+  }
+  function onPullEnd() {
+    if (pullDist >= 55) window.location.reload()
+    setPullDist(0)
+    pullRef.current.pulling = false
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className="min-h-screen bg-gray-50"
+      onTouchStart={onPullStart}
+      onTouchMove={onPullMove}
+      onTouchEnd={onPullEnd}
+    >
       <ToastContainer />
+
+      {/* Pull-to-refresh 인디케이터 */}
+      {pullDist > 10 && (
+        <div
+          className="fixed top-0 left-1/2 -translate-x-1/2 flex items-center justify-center z-50 transition-all"
+          style={{ transform: `translateX(-50%) translateY(${pullDist - 20}px)` }}
+        >
+          <div className={`w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center ${pullDist >= 55 ? 'text-orange-500' : 'text-gray-400'}`}>
+            <svg className={`w-5 h-5 ${pullDist >= 55 ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+        </div>
+      )}
 
       {/* 삭제 확인 모달 */}
       {confirmDialog && (

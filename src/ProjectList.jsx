@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useToast } from './Toast'
 import { getAuthorClass, getAuthorPhone } from './authorConfig'
 import {
   collection,
@@ -215,6 +216,7 @@ function formatFileName(name) {
 }
 
 export default function ProjectList({ onSelectProject }) {
+  const { addToast, ToastContainer } = useToast()
   const [callTarget, setCallTarget] = useState(null) // { name, phone }
   const [confirmDialog, setConfirmDialog] = useState(null) // { message, onConfirm }
   const [projects, setProjects] = useState([])
@@ -243,6 +245,22 @@ export default function ProjectList({ onSelectProject }) {
   const addInputRef = useRef(null)
   const projListRef = useRef(null)
   const touchProjRef = useRef({ id: null, overId: null })
+  const pullRef = useRef({ startY: 0, pulling: false })
+  const [pullDist, setPullDist] = useState(0)
+
+  function onPullStart(e) {
+    if (window.scrollY === 0) pullRef.current = { startY: e.touches[0].clientY, pulling: true }
+  }
+  function onPullMove(e) {
+    if (!pullRef.current.pulling) return
+    const dist = e.touches[0].clientY - pullRef.current.startY
+    if (dist > 0) setPullDist(Math.min(dist, 70))
+  }
+  function onPullEnd() {
+    if (pullDist >= 55) window.location.reload()
+    setPullDist(0)
+    pullRef.current.pulling = false
+  }
 
   const closeMenu = useCallback(() => setOpenMenuId(null), [])
   useEffect(() => {
@@ -382,6 +400,24 @@ export default function ProjectList({ onSelectProject }) {
         const projectTodos = todos.filter((t) => t.projectId === project.id)
         await Promise.all(projectTodos.map((t) => deleteDoc(doc(db, 'todos', t.id))))
         await deleteDoc(doc(db, 'projects', project.id))
+        addToast(`"${project.name}" 삭제됨`, {
+          icon: '🗑️',
+          duration: 6000,
+          action: {
+            label: '되돌리기',
+            fn: async () => {
+              const newDoc = await addDoc(collection(db, 'projects'), {
+                name: project.name,
+                completionDate: project.completionDate || '',
+                order: project.order ?? 0,
+                createdAt: project.createdAt,
+              })
+              await Promise.all(projectTodos.map((t) =>
+                addDoc(collection(db, 'todos'), { ...t, projectId: newDoc.id, id: undefined })
+              ))
+            },
+          },
+        })
       },
     })
   }
@@ -673,7 +709,26 @@ ${projectBlocks}
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className="min-h-screen bg-gray-50"
+      onTouchStart={onPullStart}
+      onTouchMove={onPullMove}
+      onTouchEnd={onPullEnd}
+    >
+      <ToastContainer />
+      {/* Pull-to-refresh 인디케이터 */}
+      {pullDist > 10 && (
+        <div
+          className="fixed top-0 left-1/2 z-50 flex items-center justify-center transition-all"
+          style={{ transform: `translateX(-50%) translateY(${pullDist - 20}px)` }}
+        >
+          <div className={`w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center ${pullDist >= 55 ? 'text-orange-500' : 'text-gray-400'}`}>
+            <svg className={`w-5 h-5 ${pullDist >= 55 ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+        </div>
+      )}
       {/* 전화 확인 모달 */}
       {callTarget && (
         <div
@@ -1056,7 +1111,6 @@ ${projectBlocks}
                   key={project.id}
                   data-projectid={project.id}
                   draggable={!isEditing}
-                  onTouchStart={() => { touchProjRef.current.id = project.id; setDraggedProjectId(project.id) }}
                   onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedProjectId(project.id) }}
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverProjectId(project.id) }}
                   onDrop={(e) => { e.preventDefault(); handleProjectDrop(project.id) }}
@@ -1099,7 +1153,10 @@ ${projectBlocks}
                       />
                     </div>
                   ) : (
-                    <p className="text-sm font-bold text-gray-800 leading-snug break-words">
+                    <p
+                      className="text-sm font-bold text-gray-800 leading-snug break-words cursor-grab active:cursor-grabbing touch-none"
+                      onTouchStart={(e) => { e.stopPropagation(); touchProjRef.current.id = project.id; setDraggedProjectId(project.id) }}
+                    >
                       용역명 : {project.name}
                     </p>
                   )}
@@ -1107,7 +1164,7 @@ ${projectBlocks}
                   {/* TODO 목록 */}
                   <div className="mt-1.5 space-y-0.5">
                     {/* todo list 라벨 + ··· 버튼 */}
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5">
                       <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo list</span>
                       {project.completionDate && (
                         <span
@@ -1117,7 +1174,7 @@ ${projectBlocks}
                           SCD {project.completionDate}
                         </span>
                       )}
-                      <div className="relative">
+                      <div className="relative" onClick={(e) => e.stopPropagation()}>
                         {isEditing ? (
                           <button
                             onClick={(e) => saveProjectName(e, project)}
