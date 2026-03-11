@@ -1,6 +1,6 @@
 export const AUTHOR_CONFIG = {
   '이상국': { class: 'text-red-600 bg-red-50 border-red-300',     phone: '010-3356-4603' },
-  '문남곤': { class: 'text-blue-600 bg-blue-50 border-blue-300',   phone: '010-4918-2624' },
+  '문남곤': { class: 'text-blue-600 bg-blue-50 border-blue-300',   phone: '010-4918-4624' },
   '김종민': { class: 'text-emerald-600 bg-emerald-50 border-emerald-300', phone: '010-2999-5062' },
   '나원진': { class: 'text-purple-600 bg-purple-50 border-purple-300', phone: '010-2756-1149' },
   '하태욱': { class: 'text-orange-600 bg-orange-50 border-orange-300', phone: '010-9788-1135' },
