@@ -41,7 +41,7 @@ export default function ProjectDetail({ project, onBack }) {
   const [input, setInput] = useState('')
   const [author, setAuthor] = useState(() => localStorage.getItem('team-todo-author') || '')
   const [category, setCategory] = useState('외업')
-  const [filter, setFilter] = useState('all')
+  const [doneCollapsed, setDoneCollapsed] = useState(true)
   const [loading, setLoading] = useState(true)
   const [editingPopup, setEditingPopup] = useState(null) // { id, text, origText, category, origCategory, author, origAuthor }
   const [confirmDialog, setConfirmDialog] = useState(null) // { message, onConfirm }
@@ -201,14 +201,15 @@ export default function ProjectDetail({ project, onBack }) {
     resetDrag()
   }
 
-  const filtered = todos.filter((t) => {
-    if (filter === 'active') return !t.done
-    if (filter === 'done') return t.done
-    return true
-  })
-
   const doneCount = todos.filter((t) => t.done).length
   const totalCount = todos.length
+
+  const PRIORITY_CATS = ['중요', '현안']
+  const activeTodos = todos.filter((t) => !t.done)
+  const doneTodos = todos.filter((t) => t.done)
+  const priorityActive = activeTodos.filter((t) => PRIORITY_CATS.includes(t.category))
+  const normalActive = activeTodos.filter((t) => !PRIORITY_CATS.includes(t.category))
+  const sortedActive = [...priorityActive, ...normalActive]
 
   const pullRef = useRef({ startY: 0, pulling: false })
   const [pullDist, setPullDist] = useState(0)
@@ -466,29 +467,6 @@ export default function ProjectDetail({ project, onBack }) {
           </div>
         </div>
 
-        {/* Filter tabs */}
-        {totalCount > 0 && (
-          <div className="flex gap-1 bg-white rounded-lg border border-gray-100 p-1">
-            {[
-              { key: 'all', label: `전체 ${totalCount}` },
-              { key: 'active', label: `진행중 ${totalCount - doneCount}` },
-              { key: 'done', label: `완료 ${doneCount}` },
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`flex-1 py-1.5 rounded-md text-sm font-medium transition ${
-                  filter === key
-                    ? 'bg-indigo-500 text-white'
-                    : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* Todo list */}
         <div
           ref={listRef}
@@ -499,17 +477,28 @@ export default function ProjectDetail({ project, onBack }) {
             <div className="text-center py-10 text-gray-400 text-sm">불러오는 중...</div>
           )}
 
-          {!loading && filtered.length === 0 && (
-            <div className="text-center py-10 text-gray-400 text-sm">
-              {filter === 'done'
-                ? '완료된 항목이 없어요'
-                : filter === 'active'
-                ? '모두 완료했어요!'
-                : '위에서 할 일을 추가해보세요'}
-            </div>
+          {!loading && totalCount === 0 && (
+            <div className="text-center py-10 text-gray-400 text-sm">위에서 할 일을 추가해보세요</div>
           )}
 
-          {filtered.map((todo, i) => {
+          {/* 완료 접이식 버튼 */}
+          {!loading && doneTodos.length > 0 && (
+            <button
+              onClick={() => setDoneCollapsed(c => !c)}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-indigo-500 hover:bg-indigo-50 transition border-b border-gray-100"
+            >
+              <svg
+                className={`w-3.5 h-3.5 transition-transform ${doneCollapsed ? '' : 'rotate-90'}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              완료 {doneTodos.length}
+            </button>
+          )}
+
+          {/* 완료 항목 (펼쳐진 경우) */}
+          {!loading && !doneCollapsed && doneTodos.map((todo, i) => {
             const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
             const isDragging = draggedId === todo.id
             const isDragOver = dragOverId === todo.id && draggedId !== todo.id
@@ -521,13 +510,8 @@ export default function ProjectDetail({ project, onBack }) {
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(todo.id) }}
                 onDrop={(e) => { e.preventDefault(); handleDrop(todo.id) }}
                 onDragEnd={resetDrag}
-                className={`flex gap-2.5 px-4 py-3 items-center cursor-pointer hover:bg-gray-50 transition ${
-                  i < filtered.length - 1 ? 'border-b border-gray-100' : ''
-                } ${todo.done ? 'opacity-50' : ''} ${isDragging ? 'opacity-30 bg-gray-50' : ''} ${
-                  isDragOver ? 'border-t-2 border-indigo-400' : ''
-                }`}
+                className={`flex gap-2.5 px-4 py-3 items-center cursor-pointer hover:bg-gray-50 transition opacity-50 border-b border-gray-100 ${isDragging ? 'opacity-30 bg-gray-50' : ''} ${isDragOver ? 'border-t-2 border-indigo-400' : ''}`}
               >
-                {/* 드래그 핸들 + 체크박스 + 카테고리 */}
                 <div
                   draggable
                   onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedId(todo.id) }}
@@ -539,20 +523,62 @@ export default function ProjectDetail({ project, onBack }) {
                 >
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleDone(todo) }}
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition mt-0.5 ${
-                      todo.done ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300 hover:border-indigo-400'
-                    }`}
+                    className="w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition mt-0.5 bg-indigo-500 border-indigo-500"
                   >
-                    {todo.done && (
-                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                   </button>
                   <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>{todo.category || '기타'}</span>
                 </div>
+                <p className="flex-1 text-sm leading-snug break-all line-through text-gray-400">
+                  {todo.category === '중요' && <span className="text-amber-400 font-bold mr-1">★</span>}
+                  {todo.category === '현안' && <span style={{ color: '#c53030', fontSize: '13px', marginRight: '3px', fontWeight: 'bold' }}>⚠</span>}
+                  {todo.text}
+                </p>
+                {todo.author && (
+                  <span className={`shrink-0 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)}`}>
+                    {todo.author}
+                  </span>
+                )}
+              </div>
+            )
+          })}
 
-                <p className={`flex-1 text-sm leading-snug break-all ${todo.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+          {/* 진행중 항목 (중요/현안 최상단 고정) */}
+          {!loading && sortedActive.map((todo, i) => {
+            const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
+            const isDragging = draggedId === todo.id
+            const isDragOver = dragOverId === todo.id && draggedId !== todo.id
+            const isPriority = PRIORITY_CATS.includes(todo.category)
+            return (
+              <div
+                key={todo.id}
+                data-todoid={todo.id}
+                onClick={() => openEditPopup(todo)}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(todo.id) }}
+                onDrop={(e) => { e.preventDefault(); handleDrop(todo.id) }}
+                onDragEnd={resetDrag}
+                className={`flex gap-2.5 px-4 py-3 items-center cursor-pointer hover:bg-gray-50 transition ${
+                  i < sortedActive.length - 1 ? 'border-b border-gray-100' : ''
+                } ${isDragging ? 'opacity-30 bg-gray-50' : ''} ${isDragOver ? 'border-t-2 border-indigo-400' : ''} ${isPriority ? 'bg-amber-50/40' : ''}`}
+              >
+                <div
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedId(todo.id) }}
+                  onTouchStart={(e) => {
+                    touchDragRef.current = { id: todo.id, overId: null, startX: e.touches[0].clientX, startY: e.touches[0].clientY, dragging: false }
+                  }}
+                  className="flex items-center gap-2 shrink-0 cursor-grab active:cursor-grabbing"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleDone(todo) }}
+                    className="w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition mt-0.5 border-gray-300 hover:border-indigo-400"
+                  />
+                  <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>{todo.category || '기타'}</span>
+                </div>
+                <p className="flex-1 text-sm leading-snug break-all text-gray-800">
                   {todo.category === '중요' && <span className="text-amber-400 font-bold mr-1">★</span>}
                   {todo.category === '현안' && <span style={{ color: '#c53030', fontSize: '13px', marginRight: '3px', fontWeight: 'bold' }}>⚠</span>}
                   {todo.text}
