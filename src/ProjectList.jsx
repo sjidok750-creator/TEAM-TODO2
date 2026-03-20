@@ -176,6 +176,7 @@ export default function ProjectList({ onSelectProject }) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [showYearPicker, setShowYearPicker] = useState(false)
   const [showCraft, setShowCraft] = useState(false)
+  const [homeTab, setHomeTab] = useState('wip')
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
   const pullRef = useRef({ startY: 0, pulling: false })
@@ -325,9 +326,13 @@ export default function ProjectList({ onSelectProject }) {
   }
 
   function getProjectTodos(projectId) {
+    const PRIORITY_CATS = new Set(['중요', '현안'])
     return todos
       .filter((t) => t.projectId === projectId)
       .sort((a, b) => {
+        const aPri = PRIORITY_CATS.has(a.category) ? 0 : 1
+        const bPri = PRIORITY_CATS.has(b.category) ? 0 : 1
+        if (aPri !== bPri) return aPri - bPri
         const aOrder = a.order ?? a.createdAt?.toMillis?.() ?? 0
         const bOrder = b.order ?? b.createdAt?.toMillis?.() ?? 0
         return aOrder - bOrder
@@ -497,6 +502,9 @@ export default function ProjectList({ onSelectProject }) {
   }
 
   const filteredProjects = projects.filter(p => getItemYear(p) === selectedYear)
+  const wipProjects = filteredProjects.filter(p => !p.closed)
+  const doneProjects = filteredProjects.filter(p => p.closed)
+  const visibleProjects = homeTab === 'wip' ? wipProjects : doneProjects
   const filteredNotices = notices.filter(n => getItemYear(n) === selectedYear)
   const filteredFiles = sharedFiles.filter(f => getItemYear(f) === selectedYear)
 
@@ -1099,42 +1107,61 @@ ${projectBlocks}
 
         {/* Project list */}
         <div>
-          <div className="mb-2 px-1">
-            <span className="font-mono text-xs font-bold text-orange-600 bg-orange-50 border border-orange-300 rounded px-2 py-0.5">
-              W.I.P
-            </span>
+          <div className="mb-2 px-1 flex items-center gap-2">
+            <button
+              onClick={() => setHomeTab('wip')}
+              className={`font-mono text-xs font-bold rounded px-2 py-0.5 border transition active:scale-95 ${
+                homeTab === 'wip'
+                  ? 'text-orange-600 bg-orange-50 border-orange-300'
+                  : 'text-gray-400 bg-white border-gray-200 hover:border-orange-200'
+              }`}
+            >
+              W.I.P{wipProjects.length > 0 ? ` (${wipProjects.length})` : ''}
+            </button>
+            <button
+              onClick={() => setHomeTab('done')}
+              className={`font-mono text-xs font-bold rounded px-2 py-0.5 border transition active:scale-95 ${
+                homeTab === 'done'
+                  ? 'text-green-700 bg-green-50 border-green-300'
+                  : 'text-gray-400 bg-white border-gray-200 hover:border-green-200'
+              }`}
+            >
+              완료{doneProjects.length > 0 ? ` (${doneProjects.length})` : ''}
+            </button>
           </div>
           <div className="space-y-2">
             {loading && (
               <div className="text-center py-12 text-gray-400 text-sm">불러오는 중...</div>
             )}
-            {!loading && filteredProjects.length === 0 && (
+            {!loading && visibleProjects.length === 0 && (
               <div className="text-center py-16 text-gray-400">
-                <p className="text-sm">{selectedYear}년 용역을 추가하면 여기에 표시됩니다</p>
+                <p className="text-sm">
+                  {homeTab === 'wip'
+                    ? `${selectedYear}년 용역을 추가하면 여기에 표시됩니다`
+                    : '완료된 용역이 없습니다'}
+                </p>
               </div>
             )}
-            {filteredProjects.map((project) => {
+            {visibleProjects.map((project) => {
               const projectTodos = getProjectTodos(project.id)
               const total = projectTodos.length
               const done = projectTodos.filter((t) => t.done).length
               const pct = total ? Math.round((done / total) * 100) : 0
               const isEditing = editingProjectId === project.id
               const isClosed = !!project.closed
-              const activeProjects = filteredProjects.filter(p => !p.closed)
-              const projIdx = activeProjects.findIndex(p => p.id === project.id)
+              const projIdx = visibleProjects.findIndex(p => p.id === project.id)
 
               const menuStyle = { fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }
               const menuBtn = 'w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-orange-50 active:bg-orange-100 whitespace-nowrap'
 
               return (
                 <div key={project.id} className="relative">
-                  {/* 카드 본문 — closed 시 blur + pointer-events 차단 */}
+                  {/* 카드 본문 */}
                   <div
-                    onClick={() => !isEditing && !isClosed && onSelectProject(project)}
+                    onClick={() => !isEditing && onSelectProject(project)}
                     className={`w-full bg-white rounded-lg border border-gray-100 px-4 py-3 text-left transition ${
-                      isClosed ? 'blur-[1.5px] opacity-40 pointer-events-none select-none' :
                       isEditing ? '' : 'hover:border-indigo-200 cursor-pointer active:bg-gray-50'
-                    }`}
+                    } ${homeTab === 'done' ? 'opacity-70' : ''}`}
                   >
                     {/* 용역명 */}
                     {isEditing ? (
@@ -1207,29 +1234,33 @@ ${projectBlocks}
                           )}
                           {openMenuId === project.id && (
                             <div className="absolute left-0 top-7 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
-                              <button
-                                disabled={projIdx === 0}
-                                onClick={(e) => { e.stopPropagation(); moveProject(project, 'up'); setOpenMenuId(null) }}
-                                style={menuStyle}
-                                className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
-                              >
-                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-                                </svg>
-                                UP ↑
-                              </button>
-                              <button
-                                disabled={projIdx === activeProjects.length - 1}
-                                onClick={(e) => { e.stopPropagation(); moveProject(project, 'down'); setOpenMenuId(null) }}
-                                style={menuStyle}
-                                className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
-                              >
-                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                                </svg>
-                                DOWN ↓
-                              </button>
-                              <div className="border-t border-orange-100" />
+                              {homeTab === 'wip' && (
+                                <>
+                                  <button
+                                    disabled={projIdx === 0}
+                                    onClick={(e) => { e.stopPropagation(); moveProject(project, 'up'); setOpenMenuId(null) }}
+                                    style={menuStyle}
+                                    className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
+                                  >
+                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                                    </svg>
+                                    UP ↑
+                                  </button>
+                                  <button
+                                    disabled={projIdx === visibleProjects.length - 1}
+                                    onClick={(e) => { e.stopPropagation(); moveProject(project, 'down'); setOpenMenuId(null) }}
+                                    style={menuStyle}
+                                    className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
+                                  >
+                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                    DOWN ↓
+                                  </button>
+                                  <div className="border-t border-orange-100" />
+                                </>
+                              )}
                               <button
                                 onClick={(e) => { startEditProject(e, project); setOpenMenuId(null) }}
                                 style={menuStyle}
@@ -1251,16 +1282,29 @@ ${projectBlocks}
                                 Delete
                               </button>
                               <div className="border-t border-orange-100" />
-                              <button
-                                onClick={(e) => { closeProject(e, project); setOpenMenuId(null) }}
-                                style={menuStyle}
-                                className={menuBtn}
-                              >
-                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                Close (END)
-                              </button>
+                              {homeTab === 'wip' ? (
+                                <button
+                                  onClick={(e) => { closeProject(e, project); setOpenMenuId(null) }}
+                                  style={menuStyle}
+                                  className={menuBtn}
+                                >
+                                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  Close (END)
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => { continueProject(e, project); setOpenMenuId(null) }}
+                                  style={menuStyle}
+                                  className={menuBtn}
+                                >
+                                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                  재개 (Continue)
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1319,23 +1363,6 @@ ${projectBlocks}
                     )}
                   </div>
 
-                  {/* END 오버레이 — closed 시 클릭 가능 */}
-                  {isClosed && (
-                    <div className="absolute inset-0 flex items-center justify-center rounded-lg">
-                      <button
-                        onClick={() => setConfirmDialog({
-                          message: 'Continue?',
-                          cancelLabel: 'NO',
-                          confirmLabel: 'YES',
-                          onConfirm: () => continueProject({ stopPropagation: () => {} }, project),
-                        })}
-                        className="text-5xl font-bold tracking-[0.3em] opacity-60 hover:opacity-90 transition active:scale-95"
-                        style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A', background: 'none', border: 'none' }}
-                      >
-                        END
-                      </button>
-                    </div>
-                  )}
                 </div>
               )
             })}
