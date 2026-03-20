@@ -177,6 +177,7 @@ export default function ProjectList({ onSelectProject }) {
   const [showYearPicker, setShowYearPicker] = useState(false)
   const [showCraft, setShowCraft] = useState(false)
   const [homeTab, setHomeTab] = useState('wip')
+  const [expandedDone, setExpandedDone] = useState(new Set())
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
   const pullRef = useRef({ startY: 0, pulling: false })
@@ -1118,16 +1119,6 @@ ${projectBlocks}
             >
               W.I.P{wipProjects.length > 0 ? ` (${wipProjects.length})` : ''}
             </button>
-            <button
-              onClick={() => setHomeTab('done')}
-              className={`font-mono text-xs font-bold rounded px-2 py-0.5 border transition active:scale-95 ${
-                homeTab === 'done'
-                  ? 'text-green-700 bg-green-50 border-green-300'
-                  : 'text-gray-400 bg-white border-gray-200 hover:border-green-200'
-              }`}
-            >
-              완료{doneProjects.length > 0 ? ` (${doneProjects.length})` : ''}
-            </button>
           </div>
           <div className="space-y-2">
             {loading && (
@@ -1144,12 +1135,24 @@ ${projectBlocks}
             )}
             {visibleProjects.map((project) => {
               const projectTodos = getProjectTodos(project.id)
+              const activeTodos = projectTodos.filter((t) => !t.done)
+              const doneTodos = projectTodos.filter((t) => t.done)
               const total = projectTodos.length
-              const done = projectTodos.filter((t) => t.done).length
+              const done = doneTodos.length
               const pct = total ? Math.round((done / total) * 100) : 0
               const isEditing = editingProjectId === project.id
               const isClosed = !!project.closed
               const projIdx = visibleProjects.findIndex(p => p.id === project.id)
+              const isDoneExpanded = expandedDone.has(project.id)
+              function toggleDoneExpanded(e) {
+                e.stopPropagation()
+                setExpandedDone(prev => {
+                  const next = new Set(prev)
+                  if (next.has(project.id)) next.delete(project.id)
+                  else next.add(project.id)
+                  return next
+                })
+              }
 
               const menuStyle = { fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }
               const menuBtn = 'w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-orange-50 active:bg-orange-100 whitespace-nowrap'
@@ -1200,7 +1203,7 @@ ${projectBlocks}
 
                     {/* TODO 목록 */}
                     <div className="mt-1.5 space-y-0.5">
-                      {/* todo list 라벨 + SCD + ··· 버튼 */}
+                      {/* todo list 라벨 + SCD + 완료탭 + ··· 버튼 */}
                       <div className="flex items-center gap-1.5">
                         <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo list</span>
                         {project.completionDate && (
@@ -1210,6 +1213,21 @@ ${projectBlocks}
                           >
                             SCD {project.completionDate}
                           </span>
+                        )}
+                        {done > 0 && (
+                          <button
+                            onClick={toggleDoneExpanded}
+                            className={`inline-flex items-center gap-0.5 font-mono text-xs font-semibold rounded px-1.5 py-0.5 border transition active:scale-95 ${
+                              isDoneExpanded
+                                ? 'text-emerald-700 bg-emerald-50 border-emerald-400'
+                                : 'text-gray-400 bg-white border-gray-200 hover:border-emerald-300 hover:text-emerald-600'
+                            }`}
+                          >
+                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            완료 {done}
+                          </button>
                         )}
                         {/* ··· 버튼 */}
                         <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -1313,14 +1331,14 @@ ${projectBlocks}
                       {total === 0 && (
                         <p className="text-xs text-gray-400 ml-1">할 일을 추가해보세요</p>
                       )}
-                      {projectTodos.map((todo) => {
+                      {activeTodos.map((todo) => {
                         const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
                         return (
                           <div key={todo.id} className="flex items-center gap-1">
                             <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
                               ({todo.category || '기타'})
                             </span>
-                            <p className={`flex-1 text-xs break-all leading-snug ${todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                            <p className="flex-1 text-xs break-all leading-snug text-gray-700">
                               {todo.category === '중요' && <span className="text-amber-400 font-bold mr-0.5">★</span>}
                               {todo.category === '현안' && <span style={{ color: '#c53030', fontSize: '13px', marginRight: '3px', fontWeight: 'bold' }}>⚠</span>}
                               {todo.text}
@@ -1344,6 +1362,41 @@ ${projectBlocks}
                           </div>
                         )
                       })}
+                      {isDoneExpanded && doneTodos.length > 0 && (
+                        <div className="mt-1 pt-1 border-t border-dashed border-gray-200 space-y-0.5">
+                          {doneTodos.map((todo) => {
+                            const cfg = CATEGORY_CONFIG[todo.category] || CATEGORY_CONFIG['기타']
+                            return (
+                              <div key={todo.id} className="flex items-center gap-1 opacity-55">
+                                <span className={`text-xs font-bold shrink-0 ${cfg.color}`}>
+                                  ({todo.category || '기타'})
+                                </span>
+                                <p className="flex-1 text-xs break-all leading-snug line-through text-gray-400">
+                                  {todo.category === '중요' && <span className="text-amber-300 font-bold mr-0.5">★</span>}
+                                  {todo.category === '현안' && <span style={{ color: '#e57373', fontSize: '13px', marginRight: '3px', fontWeight: 'bold' }}>⚠</span>}
+                                  {todo.text}
+                                </p>
+                                {todo.author && (() => {
+                                  const phone = getAuthorPhone(todo.author)
+                                  return phone ? (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setCallTarget({ name: todo.author, phone }) }}
+                                      className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)} active:opacity-70 transition opacity-60`}
+                                      title={`${todo.author} 에게 전화`}
+                                    >
+                                      {todo.author}
+                                    </button>
+                                  ) : (
+                                    <span className={`shrink-0 ml-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${getAuthorClass(todo.author)} opacity-60`}>
+                                      {todo.author}
+                                    </span>
+                                  )
+                                })()}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* 진행률 바 */}
