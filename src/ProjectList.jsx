@@ -996,7 +996,7 @@ ${projectBlocks}
               />
               <div className="flex gap-2">
                 <button
-                  onClick={() => setConfirmDialog({ message: 'Delete this notice?', cancelLabel: 'No', confirmLabel: 'Yes', onConfirm: () => deleteNotice(viewNotice) })}
+                  onClick={() => { const notice = viewNotice; setViewNotice(null); setConfirmDialog({ message: 'Delete this notice?', cancelLabel: 'No', confirmLabel: 'Yes', onConfirm: () => deleteNotice(notice) }) }}
                   className="flex-1 py-2.5 rounded-xl text-sm border border-current transition active:scale-95 hover:bg-orange-50"
                   style={monoOrange}
                 >
