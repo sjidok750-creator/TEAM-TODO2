@@ -410,20 +410,20 @@ export default function ProjectDetail({ project, onBack }) {
         {/* Input area */}
         <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 space-y-2.5">
           {/* Category */}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-1.5 flex-wrap">
             {['외업', '내업', '중요', '현안', '기타'].map((cat) => {
               const cfg = CATEGORY_CONFIG[cat]
               return (
                 <button
                   key={cat}
                   onClick={() => setCategory(cat)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition active:scale-95 ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold border transition active:scale-95 ${
                     category === cat
                       ? cfg.badgeClass
                       : 'text-gray-400 border-gray-200 bg-white'
                   }`}
                 >
-                  {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#c53030', fontSize: '11px', marginRight: '2px', fontWeight: 'bold' }}>⚠</span>}{cat}
+                  {cat === '중요' && '★ '}{cat === '현안' && <span style={{ color: '#c53030', fontSize: '10px', marginRight: '2px', fontWeight: 'bold' }}>⚠</span>}{cat}
                 </button>
               )
             })}
@@ -454,13 +454,14 @@ export default function ProjectDetail({ project, onBack }) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addTodo()}
               placeholder="할 일을 입력하세요..."
-              className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+              style={{ fontSize: '16px' }}
               maxLength={200}
             />
             <button
               onClick={addTodo}
               disabled={!input.trim()}
-              className="bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition active:scale-95 shrink-0"
+              className="bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-xs font-semibold transition active:scale-95 shrink-0"
             >
               추가
             </button>
