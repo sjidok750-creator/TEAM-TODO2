@@ -178,6 +178,7 @@ export default function ProjectList({ onSelectProject }) {
   const [showCraft, setShowCraft] = useState(false)
   const [homeTab, setHomeTab] = useState('wip')
   const [expandedDone, setExpandedDone] = useState(new Set())
+  const [subcontractInputs, setSubcontractInputs] = useState({})
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
   const pullRef = useRef({ startY: 0, pulling: false })
@@ -324,6 +325,10 @@ export default function ProjectList({ onSelectProject }) {
       completionDate: editingDate.trim() || null,
     })
     setEditingProjectId(null)
+  }
+
+  async function saveSubcontract(projectId, value) {
+    await updateDoc(doc(db, 'projects', projectId), { subcontract: value })
   }
 
   function getProjectTodos(projectId) {
@@ -1399,21 +1404,25 @@ ${projectBlocks}
                       )}
                     </div>
 
-                    {/* 진행률 바 */}
-                    {total > 0 && (
-                      <div className="mt-2 space-y-1">
-                        <div className="flex items-center justify-between text-xs text-gray-400">
-                          <span>{done} / {total} 완료</span>
-                          <span>{pct}%</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5">
-                          <div
-                            className="h-1.5 rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: '#E8694A' }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                    {/* 하도급신고현황 */}
+                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                      <label className="block text-xs text-gray-400 mb-0.5">하도급신고현황</label>
+                      <input
+                        type="text"
+                        value={subcontractInputs[project.id] !== undefined ? subcontractInputs[project.id] : (project.subcontract || '')}
+                        onChange={(e) => setSubcontractInputs(prev => ({ ...prev, [project.id]: e.target.value }))}
+                        onBlur={(e) => {
+                          const val = e.target.value
+                          saveSubcontract(project.id, val)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.target.blur()
+                        }}
+                        placeholder="직접 입력..."
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition"
+                        style={{ fontFamily: "'Noto Sans KR', sans-serif", color: '#0055FF' }}
+                      />
+                    </div>
                   </div>
 
                 </div>
