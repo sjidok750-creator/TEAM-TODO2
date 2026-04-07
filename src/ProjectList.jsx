@@ -138,16 +138,16 @@ function getItemYear(item) {
   return new Date().getFullYear()
 }
 
-// 날짜 토큰 파싱: "4.2", "4/2", "4월2일", "04.02" 등 → { month, day } or null
+// 날짜 파싱: 괄호 포함 "(4.2)", "(4/2)", "4월2일" 등 → { month, day } or null
 function parseDate(token) {
+  // 괄호 제거 후 파싱
+  const t = token.replace(/^[(\[（【]/, '').replace(/[)\]）】]$/, '').trim()
   let m, d
-  // 4월2일 / 4월 2일
-  let r = token.match(/^(\d{1,2})월\s*(\d{1,2})일?$/)
-  if (r) { m = parseInt(r[1]); d = parseInt(r[2]); }
+  let r = t.match(/^(\d{1,2})월\s*(\d{1,2})일?$/)
+  if (r) { m = parseInt(r[1]); d = parseInt(r[2]) }
   if (!m) {
-    // 4.2 / 04.02 / 4/2 / 04/02
-    r = token.match(/^(\d{1,2})[./](\d{1,2})$/)
-    if (r) { m = parseInt(r[1]); d = parseInt(r[2]); }
+    r = t.match(/^(\d{1,2})[./](\d{1,2})$/)
+    if (r) { m = parseInt(r[1]); d = parseInt(r[2]) }
   }
   if (!m || m < 1 || m > 12 || d < 1 || d > 31) return null
   return { month: m, day: d }
@@ -156,62 +156,98 @@ function parseDate(token) {
 function isPastDate(month, day) {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const target = new Date(now.getFullYear(), month - 1, day)
-  return target < today
+  return new Date(now.getFullYear(), month - 1, day) < today
 }
 
-// 텍스트를 토큰으로 분리해 날짜면 취소선 렌더링
+// 텍스트를 세그먼트로 분리: 쉼표 기준으로 청크 나누고, 각 청크 내 날짜 토큰 감지
+// 날짜가 지난 경우 → 날짜 토큰 + 쉼표 이전까지의 텍스트(날짜 바로 옆 글자 포함) 취소선
 function SubcontractText({ text }) {
   if (!text) return null
-  // 구분자: 공백, 쉼표, 세미콜론 기준으로 토큰 분리 (구분자도 보존)
-  const parts = text.split(/(\s+|,|;)/)
-  return (
-    <>
-      {parts.map((part, i) => {
-        const parsed = parseDate(part.trim())
-        if (parsed && isPastDate(parsed.month, parsed.day)) {
-          return (
-            <span key={i} style={{ textDecoration: 'line-through', opacity: 0.5 }}>
-              {part}
-            </span>
-          )
-        }
-        return <span key={i}>{part}</span>
-      })}
-    </>
-  )
+
+  // 쉼표로 분리 (쉼표 포함 보존)
+  const chunks = text.split(/(,)/)
+  const result = []
+
+  chunks.forEach((chunk, ci) => {
+    if (chunk === ',') {
+      result.push(<span key={`comma-${ci}`}>,</span>)
+      return
+    }
+    // 청크 내에서 날짜 토큰 찾기
+    // 날짜 패턴: 괄호 포함/미포함, 공백 기준 토큰
+    const DATE_RE = /([(\[（【]?\d{1,2}[./]\d{1,2}[)\]）】]?|[(\[（【]?\d{1,2}월\s*\d{1,2}일?[)\]）】]?)/g
+    let match
+    let lastIndex = 0
+    let hasPastDate = false
+    const spans = []
+    const tempMatches = []
+
+    // 모든 날짜 매치 수집
+    while ((match = DATE_RE.exec(chunk)) !== null) {
+      const parsed = parseDate(match[0])
+      if (parsed && isPastDate(parsed.month, parsed.day)) {
+        hasPastDate = true
+        tempMatches.push({ index: match.index, end: match.index + match[0].length, text: match[0] })
+      }
+    }
+
+    if (!hasPastDate) {
+      result.push(<span key={`chunk-${ci}`}>{chunk}</span>)
+      return
+    }
+
+    // 지난 날짜가 있는 청크 전체를 취소선 처리
+    result.push(
+      <span key={`chunk-${ci}`} style={{ textDecoration: 'line-through', opacity: 0.5 }}>
+        {chunk}
+      </span>
+    )
+  })
+
+  return <>{result}</>
 }
 
 // 하도급신고현황 표형태 컴포넌트
 function SubcontractField({ projectId, value, onChange, onSave }) {
   const [editing, setEditing] = useState(false)
-  const inputRef = useRef(null)
+  const textareaRef = useRef(null)
 
-  function handleFocus() { setEditing(true) }
+  // textarea 높이를 콘텐츠에 맞게 조정
+  function adjustHeight(el) {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  }
+
+  useEffect(() => {
+    if (editing && textareaRef.current) {
+      adjustHeight(textareaRef.current)
+      // 커서를 끝으로 이동
+      const len = textareaRef.current.value.length
+      textareaRef.current.setSelectionRange(len, len)
+    }
+  }, [editing])
+
   function handleBlur(e) {
     setEditing(false)
     onSave(e.target.value)
-  }
-  function handleKeyDown(e) {
-    if (e.key === 'Enter') e.target.blur()
   }
 
   return (
     <div
       className="mt-2 flex items-stretch border border-gray-200 rounded overflow-hidden"
       onClick={(e) => e.stopPropagation()}
-      style={{ minHeight: '28px' }}
     >
       {/* 라벨 셀 */}
       <div
         className="flex items-center justify-center px-2 py-1 bg-gray-50 border-r border-gray-200 shrink-0"
         style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: '11px', fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}
       >
-        하도급신고현황
+        하도신고
       </div>
       {/* 입력/표시 셀 */}
-      <div className="relative flex-1 min-w-0">
-        {/* 표시용 레이어 (편집 중 아닐 때) */}
+      <div className="flex-1 min-w-0">
+        {/* 표시 레이어 */}
         {!editing && (
           <div
             className="w-full px-2 py-1 cursor-text"
@@ -219,39 +255,38 @@ function SubcontractField({ projectId, value, onChange, onSave }) {
               fontFamily: "'Noto Sans KR', sans-serif",
               fontSize: '12px',
               color: '#0055FF',
-              lineHeight: '1.5',
+              lineHeight: '1.6',
               wordBreak: 'break-word',
               whiteSpace: 'pre-wrap',
-              minHeight: '26px',
+              minHeight: '28px',
             }}
-            onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.focus(), 0) }}
+            onClick={() => setEditing(true)}
           >
-            {value ? <SubcontractText text={value} /> : <span style={{ color: '#aaa', fontWeight: 400 }}>직접 입력...</span>}
+            {value
+              ? <SubcontractText text={value} />
+              : <span style={{ color: '#bbb', fontWeight: 400 }}>직접 입력...</span>
+            }
           </div>
         )}
-        {/* 편집용 textarea */}
+        {/* 편집 textarea — 항상 마운트되어 높이 계산 가능 */}
         {editing && (
           <textarea
-            ref={inputRef}
+            ref={textareaRef}
             autoFocus
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => { onChange(e.target.value); adjustHeight(e.target) }}
             onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
-            rows={1}
-            className="w-full px-2 py-1 focus:outline-none resize-none"
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) e.target.blur() }}
+            className="w-full px-2 py-1 focus:outline-none resize-none block"
             style={{
               fontFamily: "'Noto Sans KR', sans-serif",
               fontSize: '12px',
               color: '#0055FF',
-              lineHeight: '1.5',
+              lineHeight: '1.6',
               background: 'transparent',
-              minHeight: '26px',
+              minHeight: '28px',
               overflow: 'hidden',
-            }}
-            onInput={(e) => {
-              e.target.style.height = 'auto'
-              e.target.style.height = e.target.scrollHeight + 'px'
+              display: 'block',
             }}
           />
         )}
