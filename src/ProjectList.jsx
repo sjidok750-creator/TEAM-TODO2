@@ -138,6 +138,128 @@ function getItemYear(item) {
   return new Date().getFullYear()
 }
 
+// 날짜 토큰 파싱: "4.2", "4/2", "4월2일", "04.02" 등 → { month, day } or null
+function parseDate(token) {
+  let m, d
+  // 4월2일 / 4월 2일
+  let r = token.match(/^(\d{1,2})월\s*(\d{1,2})일?$/)
+  if (r) { m = parseInt(r[1]); d = parseInt(r[2]); }
+  if (!m) {
+    // 4.2 / 04.02 / 4/2 / 04/02
+    r = token.match(/^(\d{1,2})[./](\d{1,2})$/)
+    if (r) { m = parseInt(r[1]); d = parseInt(r[2]); }
+  }
+  if (!m || m < 1 || m > 12 || d < 1 || d > 31) return null
+  return { month: m, day: d }
+}
+
+function isPastDate(month, day) {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const target = new Date(now.getFullYear(), month - 1, day)
+  return target < today
+}
+
+// 텍스트를 토큰으로 분리해 날짜면 취소선 렌더링
+function SubcontractText({ text }) {
+  if (!text) return null
+  // 구분자: 공백, 쉼표, 세미콜론 기준으로 토큰 분리 (구분자도 보존)
+  const parts = text.split(/(\s+|,|;)/)
+  return (
+    <>
+      {parts.map((part, i) => {
+        const parsed = parseDate(part.trim())
+        if (parsed && isPastDate(parsed.month, parsed.day)) {
+          return (
+            <span key={i} style={{ textDecoration: 'line-through', opacity: 0.5 }}>
+              {part}
+            </span>
+          )
+        }
+        return <span key={i}>{part}</span>
+      })}
+    </>
+  )
+}
+
+// 하도급신고현황 표형태 컴포넌트
+function SubcontractField({ projectId, value, onChange, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const inputRef = useRef(null)
+
+  function handleFocus() { setEditing(true) }
+  function handleBlur(e) {
+    setEditing(false)
+    onSave(e.target.value)
+  }
+  function handleKeyDown(e) {
+    if (e.key === 'Enter') e.target.blur()
+  }
+
+  return (
+    <div
+      className="mt-2 flex items-stretch border border-gray-200 rounded overflow-hidden"
+      onClick={(e) => e.stopPropagation()}
+      style={{ minHeight: '28px' }}
+    >
+      {/* 라벨 셀 */}
+      <div
+        className="flex items-center justify-center px-2 py-1 bg-gray-50 border-r border-gray-200 shrink-0"
+        style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: '11px', fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}
+      >
+        하도급신고현황
+      </div>
+      {/* 입력/표시 셀 */}
+      <div className="relative flex-1 min-w-0">
+        {/* 표시용 레이어 (편집 중 아닐 때) */}
+        {!editing && (
+          <div
+            className="w-full px-2 py-1 cursor-text"
+            style={{
+              fontFamily: "'Noto Sans KR', sans-serif",
+              fontSize: '12px',
+              color: '#0055FF',
+              lineHeight: '1.5',
+              wordBreak: 'break-word',
+              whiteSpace: 'pre-wrap',
+              minHeight: '26px',
+            }}
+            onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.focus(), 0) }}
+          >
+            {value ? <SubcontractText text={value} /> : <span style={{ color: '#aaa', fontWeight: 400 }}>직접 입력...</span>}
+          </div>
+        )}
+        {/* 편집용 textarea */}
+        {editing && (
+          <textarea
+            ref={inputRef}
+            autoFocus
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            className="w-full px-2 py-1 focus:outline-none resize-none"
+            style={{
+              fontFamily: "'Noto Sans KR', sans-serif",
+              fontSize: '12px',
+              color: '#0055FF',
+              lineHeight: '1.5',
+              background: 'transparent',
+              minHeight: '26px',
+              overflow: 'hidden',
+            }}
+            onInput={(e) => {
+              e.target.style.height = 'auto'
+              e.target.style.height = e.target.scrollHeight + 'px'
+            }}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
 function formatFileName(name) {
   const lastDot = name.lastIndexOf('.')
   if (lastDot === -1) {
@@ -1405,24 +1527,12 @@ ${projectBlocks}
                     </div>
 
                     {/* 하도급신고현황 */}
-                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                      <label className="block text-xs text-gray-400 mb-0.5">하도급신고현황</label>
-                      <input
-                        type="text"
-                        value={subcontractInputs[project.id] !== undefined ? subcontractInputs[project.id] : (project.subcontract || '')}
-                        onChange={(e) => setSubcontractInputs(prev => ({ ...prev, [project.id]: e.target.value }))}
-                        onBlur={(e) => {
-                          const val = e.target.value
-                          saveSubcontract(project.id, val)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') e.target.blur()
-                        }}
-                        placeholder="직접 입력..."
-                        className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition"
-                        style={{ fontFamily: "'Noto Sans KR', sans-serif", color: '#0055FF' }}
-                      />
-                    </div>
+                    <SubcontractField
+                      projectId={project.id}
+                      value={subcontractInputs[project.id] !== undefined ? subcontractInputs[project.id] : (project.subcontract || '')}
+                      onChange={(val) => setSubcontractInputs(prev => ({ ...prev, [project.id]: val }))}
+                      onSave={(val) => saveSubcontract(project.id, val)}
+                    />
                   </div>
 
                 </div>
