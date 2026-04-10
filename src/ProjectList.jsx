@@ -314,9 +314,12 @@ export default function ProjectList({ onSelectProject }) {
   const [sharedFiles, setSharedFiles] = useState([])
   const [input, setInput] = useState('')
   const [completionDate, setCompletionDate] = useState('')
+  const [contractAmount, setContractAmount] = useState('')
+  const [showAmountDetail, setShowAmountDetail] = useState(false)
   const [loading, setLoading] = useState(true)
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [editingName, setEditingName] = useState('')
+  const [editingAmount, setEditingAmount] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
@@ -420,10 +423,12 @@ export default function ProjectList({ onSelectProject }) {
     if (!name) return
     setInput('')
     setCompletionDate('')
+    setContractAmount('')
     setShowAddModal(false)
     await addDoc(collection(db, 'projects'), {
       name,
       completionDate: completionDate.trim() || null,
+      contractAmount: contractAmount.trim() || null,
       year: selectedYear,
       createdAt: serverTimestamp(),
     })
@@ -471,6 +476,7 @@ export default function ProjectList({ onSelectProject }) {
     setEditingProjectId(project.id)
     setEditingName(project.name)
     setEditingDate(project.completionDate || '')
+    setEditingAmount(project.contractAmount || '')
   }
 
   async function saveProjectName(e, project) {
@@ -480,6 +486,7 @@ export default function ProjectList({ onSelectProject }) {
     await updateDoc(doc(db, 'projects', project.id), {
       name,
       completionDate: editingDate.trim() || null,
+      contractAmount: editingAmount.trim() || null,
     })
     setEditingProjectId(null)
   }
@@ -662,6 +669,16 @@ export default function ProjectList({ onSelectProject }) {
     a.href = viewingFile.dataUrl
     a.download = viewingFile.name
     a.click()
+  }
+
+  function parseAmount(str) {
+    if (!str) return 0
+    const num = parseFloat(str.replace(/,/g, '').replace(/[^0-9.]/g, ''))
+    return isNaN(num) ? 0 : num
+  }
+
+  function formatAmount(num) {
+    return num.toLocaleString('ko-KR')
   }
 
   const filteredProjects = projects.filter(p => getItemYear(p) === selectedYear)
@@ -1054,7 +1071,7 @@ ${projectBlocks}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') addProject()
-                if (e.key === 'Escape') { setShowAddModal(false); setInput(''); setCompletionDate('') }
+                if (e.key === 'Escape') { setShowAddModal(false); setInput(''); setCompletionDate(''); setContractAmount('') }
               }}
               placeholder="용역명을 입력하세요..."
               className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 transition mb-3 bg-white"
@@ -1068,16 +1085,30 @@ ${projectBlocks}
               onChange={(e) => setCompletionDate(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') addProject()
-                if (e.key === 'Escape') { setShowAddModal(false); setInput(''); setCompletionDate('') }
+                if (e.key === 'Escape') { setShowAddModal(false); setInput(''); setCompletionDate(''); setContractAmount('') }
               }}
               placeholder="예: 26/12/31"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 transition mb-4 bg-white"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 transition mb-3 bg-white"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
               maxLength={8}
             />
+            <label className="block text-xs font-medium mb-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }}>Contract Amount(용역금액)</label>
+            <input
+              type="text"
+              value={contractAmount}
+              onChange={(e) => setContractAmount(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') addProject()
+                if (e.key === 'Escape') { setShowAddModal(false); setInput(''); setCompletionDate(''); setContractAmount('') }
+              }}
+              placeholder="예: 150,000,000"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 transition mb-4 bg-white"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              maxLength={30}
+            />
             <div className="flex gap-2">
               <button
-                onClick={() => { setShowAddModal(false); setInput(''); setCompletionDate('') }}
+                onClick={() => { setShowAddModal(false); setInput(''); setCompletionDate(''); setContractAmount('') }}
                 className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition active:scale-95 hover:opacity-80"
                 style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A', border: '2px solid #E8694A', background: '#f5f5f5' }}
               >
@@ -1266,6 +1297,46 @@ ${projectBlocks}
               </div>
             ))}
           </div>
+
+          {/* 용역금액 총합 row */}
+          {(() => {
+            const projectsWithAmount = filteredProjects.filter(p => p.contractAmount)
+            const total = projectsWithAmount.reduce((sum, p) => sum + parseAmount(p.contractAmount), 0)
+            if (projectsWithAmount.length === 0) return null
+            return (
+              <div className="border-t border-gray-100">
+                <button
+                  onClick={() => setShowAmountDetail(v => !v)}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition text-left"
+                >
+                  <span className="shrink-0 text-xs font-bold text-gray-700 bg-gray-100 border border-gray-300 rounded px-2 py-0.5 whitespace-nowrap">
+                    용역금액
+                  </span>
+                  <span className="text-xs font-bold text-indigo-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    ₩ {formatAmount(total)}
+                  </span>
+                  <svg
+                    className={`w-3 h-3 ml-auto text-gray-400 transition-transform ${showAmountDetail ? 'rotate-90' : ''}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                {showAmountDetail && (
+                  <div className="px-3 pb-2 space-y-0.5">
+                    {projectsWithAmount.map((p) => (
+                      <div key={p.id} className="flex items-center gap-2 text-xs text-gray-600">
+                        <span className="truncate flex-1">{p.name}</span>
+                        <span className="shrink-0 font-medium text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          ₩ {formatAmount(parseAmount(p.contractAmount))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Project list */}
@@ -1355,6 +1426,18 @@ ${projectBlocks}
                           placeholder="준공일 YY/MM/DD (예: 26/12/31)"
                           className="mt-1.5 w-full px-2 py-1 border border-indigo-200 rounded text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                           maxLength={8}
+                        />
+                        <input
+                          type="text"
+                          value={editingAmount}
+                          onChange={(e) => setEditingAmount(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveProjectName(e, project)
+                            if (e.key === 'Escape') { e.stopPropagation(); setEditingProjectId(null) }
+                          }}
+                          placeholder="용역금액 (예: 150,000,000)"
+                          className="mt-1.5 w-full px-2 py-1 border border-indigo-200 rounded text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                          maxLength={30}
                         />
                       </div>
                     ) : (
