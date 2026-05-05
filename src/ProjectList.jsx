@@ -176,7 +176,6 @@ export default function ProjectList({ onSelectProject }) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [showYearPicker, setShowYearPicker] = useState(false)
   const [showCraft, setShowCraft] = useState(false)
-  const [homeTab, setHomeTab] = useState('wip')
   const [expandedDone, setExpandedDone] = useState(new Set())
   const [subcontractInputs, setSubcontractInputs] = useState({})
   const editNameRef = useRef(null)
@@ -509,8 +508,7 @@ export default function ProjectList({ onSelectProject }) {
 
   const filteredProjects = projects.filter(p => getItemYear(p) === selectedYear)
   const wipProjects = filteredProjects.filter(p => !p.closed)
-  const doneProjects = filteredProjects.filter(p => p.closed)
-  const visibleProjects = homeTab === 'wip' ? wipProjects : doneProjects
+  const visibleProjects = filteredProjects
   const filteredNotices = notices.filter(n => getItemYear(n) === selectedYear)
   const filteredFiles = sharedFiles.filter(f => getItemYear(f) === selectedYear)
 
@@ -1114,16 +1112,9 @@ ${projectBlocks}
         {/* Project list */}
         <div>
           <div className="mb-2 px-1 flex items-center gap-2">
-            <button
-              onClick={() => setHomeTab('wip')}
-              className={`font-mono text-xs font-bold rounded px-2 py-0.5 border transition active:scale-95 ${
-                homeTab === 'wip'
-                  ? 'text-orange-600 bg-orange-50 border-orange-300'
-                  : 'text-gray-400 bg-white border-gray-200 hover:border-orange-200'
-              }`}
-            >
+            <span className="font-mono text-xs font-bold rounded px-2 py-0.5 border text-orange-600 bg-orange-50 border-orange-300">
               W.I.P{wipProjects.length > 0 ? ` (${wipProjects.length})` : ''}
-            </button>
+            </span>
           </div>
           <div className="space-y-2">
             {loading && (
@@ -1132,9 +1123,7 @@ ${projectBlocks}
             {!loading && visibleProjects.length === 0 && (
               <div className="text-center py-16 text-gray-400">
                 <p className="text-sm">
-                  {homeTab === 'wip'
-                    ? `${selectedYear}년 용역을 추가하면 여기에 표시됩니다`
-                    : '완료된 용역이 없습니다'}
+                  {`${selectedYear}년 용역을 추가하면 여기에 표시됩니다`}
                 </p>
               </div>
             )}
@@ -1166,10 +1155,10 @@ ${projectBlocks}
                 <div key={project.id} className="relative">
                   {/* 카드 본문 */}
                   <div
-                    onClick={() => !isEditing && onSelectProject(project)}
+                    onClick={() => !isEditing && !isClosed && onSelectProject(project)}
                     className={`w-full bg-white rounded-lg border border-gray-100 px-4 py-3 text-left transition ${
-                      isEditing ? '' : 'hover:border-indigo-200 cursor-pointer active:bg-gray-50'
-                    } ${homeTab === 'done' ? 'opacity-70' : ''}`}
+                      isEditing || isClosed ? '' : 'hover:border-indigo-200 cursor-pointer active:bg-gray-50'
+                    } ${isClosed ? 'opacity-50' : ''}`}
                   >
                     {/* 용역명 */}
                     {isEditing ? (
@@ -1257,7 +1246,7 @@ ${projectBlocks}
                           )}
                           {openMenuId === project.id && (
                             <div className="absolute left-0 top-7 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
-                              {homeTab === 'wip' && (
+                              {!isClosed && (
                                 <>
                                   <button
                                     disabled={projIdx === 0}
@@ -1271,7 +1260,7 @@ ${projectBlocks}
                                     UP ↑
                                   </button>
                                   <button
-                                    disabled={projIdx === visibleProjects.length - 1}
+                                    disabled={projIdx === wipProjects.length - 1}
                                     onClick={(e) => { e.stopPropagation(); moveProject(project, 'down'); setOpenMenuId(null) }}
                                     style={menuStyle}
                                     className={`${menuBtn} disabled:opacity-30 disabled:pointer-events-none`}
@@ -1304,29 +1293,20 @@ ${projectBlocks}
                                 </svg>
                                 Delete
                               </button>
-                              <div className="border-t border-orange-100" />
-                              {homeTab === 'wip' ? (
-                                <button
-                                  onClick={(e) => { closeProject(e, project); setOpenMenuId(null) }}
-                                  style={menuStyle}
-                                  className={menuBtn}
-                                >
-                                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                  Close (END)
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={(e) => { continueProject(e, project); setOpenMenuId(null) }}
-                                  style={menuStyle}
-                                  className={menuBtn}
-                                >
-                                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                  </svg>
-                                  재개 (Continue)
-                                </button>
+                              {!isClosed && (
+                                <>
+                                  <div className="border-t border-orange-100" />
+                                  <button
+                                    onClick={(e) => { closeProject(e, project); setOpenMenuId(null) }}
+                                    style={menuStyle}
+                                    className={menuBtn}
+                                  >
+                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Close (END)
+                                  </button>
+                                </>
                               )}
                             </div>
                           )}
@@ -1425,6 +1405,23 @@ ${projectBlocks}
                     </div>
                   </div>
 
+                  {/* END 오버레이 — closed 시 클릭 가능 */}
+                  {isClosed && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-lg">
+                      <button
+                        onClick={() => setConfirmDialog({
+                          message: 'Continue?',
+                          cancelLabel: 'NO',
+                          confirmLabel: 'YES',
+                          onConfirm: () => continueProject({ stopPropagation: () => {} }, project),
+                        })}
+                        className="text-5xl font-bold tracking-[0.3em] opacity-80 hover:opacity-100 transition active:scale-95"
+                        style={{ fontFamily: "'JetBrains Mono', monospace", color: '#E8694A', background: 'none', border: 'none' }}
+                      >
+                        END
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}
