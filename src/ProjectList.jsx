@@ -664,10 +664,27 @@ export default function ProjectList({ onSelectProject }) {
 
   function downloadCurrentFile() {
     if (!viewingFile?.dataUrl) return
-    const a = document.createElement('a')
-    a.href = viewingFile.dataUrl
-    a.download = viewingFile.name
-    a.click()
+    try {
+      const byteString = atob(viewingFile.dataUrl.split(',')[1])
+      const mimeType = viewingFile.dataUrl.split(',')[0].split(':')[1].split(';')[0]
+      const ab = new ArrayBuffer(byteString.length)
+      const ia = new Uint8Array(ab)
+      for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i)
+      const blob = new Blob([ab], { type: mimeType })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = viewingFile.name
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    } catch {
+      const a = document.createElement('a')
+      a.href = viewingFile.dataUrl
+      a.download = viewingFile.name
+      a.click()
+    }
   }
 
   function parseAmount(str) {
@@ -1030,11 +1047,19 @@ ${projectBlocks}
                 className="max-w-full max-h-full object-contain rounded shadow-lg"
               />
             ) : viewingFile.type === 'application/pdf' ? (
-              <iframe
-                src={viewingFile.dataUrl}
-                className="w-full h-full rounded"
-                title={viewingFile.name}
-              />
+              <div className="text-center text-white flex flex-col items-center gap-4">
+                <svg className="w-16 h-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                <p className="text-gray-300 text-sm">{viewingFile.name}</p>
+                <p className="text-gray-500 text-xs">스마트폰에서는 PDF 미리보기가 지원되지 않습니다.</p>
+                <button
+                  onClick={downloadCurrentFile}
+                  className="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-semibold transition active:scale-95"
+                >
+                  다운로드
+                </button>
+              </div>
             ) : (
               <div className="text-center text-white">
                 <p className="text-gray-400 mb-5 text-sm">이 파일 형식은 미리보기를 지원하지 않습니다.</p>
