@@ -25,6 +25,9 @@ const LUNAR_HOLIDAYS = {
   2025: new Set(['2025-01-28','2025-01-29','2025-01-30','2025-05-06','2025-10-05','2025-10-06','2025-10-07','2025-10-08']),
   2026: new Set(['2026-02-15','2026-02-16','2026-02-17','2026-02-18','2026-09-23','2026-09-24','2026-09-25','2026-09-26']),
 }
+// 전화번호 패턴 (010-1234-5678, 042-479-8382, 021234567 등)
+const PHONE_RE = /(0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4})/g
+
 function isHoliday(year, month, day) {
   const mm = String(month + 1).padStart(2, '0')
   const dd = String(day).padStart(2, '0')
@@ -338,6 +341,9 @@ export default function ProjectList({ onSelectProject }) {
   const [showCraft, setShowCraft] = useState(false)
   const [expandedDone, setExpandedDone] = useState(new Set())
   const [subcontractInputs, setSubcontractInputs] = useState({})
+  const [memos, setMemos] = useState([])
+  const [memoTarget, setMemoTarget] = useState(null) // { id, name }
+  const [memoInput, setMemoInput] = useState('')
   const editNameRef = useRef(null)
   const addInputRef = useRef(null)
   const pullRef = useRef({ startY: 0, pulling: false })
@@ -409,6 +415,14 @@ export default function ProjectList({ onSelectProject }) {
     const q = query(collection(db, 'sharedFiles'), orderBy('createdAt', 'asc'))
     const unsub = onSnapshot(q, (snap) => {
       setSharedFiles(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    })
+    return unsub
+  }, [])
+
+  useEffect(() => {
+    const q = query(collection(db, 'memos'), orderBy('createdAt', 'asc'))
+    const unsub = onSnapshot(q, (snap) => {
+      setMemos(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     })
     return unsub
   }, [])
@@ -492,6 +506,41 @@ export default function ProjectList({ onSelectProject }) {
 
   async function saveSubcontract(projectId, value) {
     await updateDoc(doc(db, 'projects', projectId), { subcontract: value })
+  }
+
+  async function addMemo() {
+    const text = memoInput.trim()
+    if (!text || !memoTarget) return
+    setMemoInput('')
+    await addDoc(collection(db, 'memos'), {
+      projectId: memoTarget.id,
+      text,
+      author: localStorage.getItem('team-todo-nickname') || '',
+      createdAt: serverTimestamp(),
+    })
+  }
+
+  async function deleteMemo(memo) {
+    await deleteDoc(doc(db, 'memos', memo.id))
+  }
+
+  // 메모 텍스트에서 전화번호를 인식해 탭 시 전화 걸기
+  function renderMemoText(text) {
+    const parts = text.split(PHONE_RE)
+    return parts.map((part, i) => {
+      if (i % 2 === 1) {
+        return (
+          <button
+            key={i}
+            onClick={() => setCallTarget({ name: '', phone: part.trim() })}
+            className="text-indigo-600 underline underline-offset-2 font-semibold active:opacity-60 transition"
+          >
+            {part}
+          </button>
+        )
+      }
+      return <span key={i}>{part}</span>
+    })
   }
 
   function getProjectTodos(projectId) {
@@ -842,9 +891,11 @@ ${projectBlocks}
             <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1.15rem' }}>
               Call this number?
             </p>
-            <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1rem' }}>
-              {callTarget.name}
-            </p>
+            {callTarget.name && (
+              <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1rem' }}>
+                {callTarget.name}
+              </p>
+            )}
             <p style={{ color: '#E8694A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, fontSize: '1.05rem', letterSpacing: '0.05em' }}>
               {callTarget.phone}
             </p>
@@ -868,6 +919,78 @@ ${projectBlocks}
           </div>
         </div>
       )}
+
+      {/* 메모장 팝업 */}
+      {memoTarget && (() => {
+        const list = memos
+          .filter((m) => m.projectId === memoTarget.id)
+          .sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0))
+        const monoOrange = { fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+            onClick={() => setMemoTarget(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col gap-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 shrink-0" style={{ color: '#E8694A' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <p className="text-sm font-bold" style={monoOrange}>MEMO</p>
+              </div>
+              <p className="text-xs text-gray-400 break-words leading-snug -mt-1">{memoTarget.name}</p>
+
+              <div className="max-h-64 overflow-y-auto flex flex-col gap-1.5 -mx-1 px-1">
+                {list.length === 0 ? (
+                  <p className="text-xs text-gray-300 text-center py-6">메모를 기록해보세요</p>
+                ) : (
+                  list.map((memo) => (
+                    <div key={memo.id} className="group flex items-start gap-2 bg-orange-50/50 border border-orange-100 rounded-lg px-2.5 py-1.5">
+                      <p className="flex-1 text-xs text-gray-700 break-words leading-relaxed whitespace-pre-wrap">
+                        {renderMemoText(memo.text)}
+                      </p>
+                      <button
+                        onClick={() => deleteMemo(memo)}
+                        className="shrink-0 text-gray-300 hover:text-red-500 transition p-0.5 active:scale-90"
+                        title="삭제"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="flex items-end gap-2 pt-1 border-t border-orange-100">
+                <textarea
+                  autoFocus
+                  value={memoInput}
+                  onChange={(e) => setMemoInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addMemo() }
+                  }}
+                  rows={1}
+                  placeholder="메모 입력... (전화번호 입력 시 통화)"
+                  className="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none leading-relaxed"
+                />
+                <button
+                  onClick={addMemo}
+                  disabled={!memoInput.trim()}
+                  className="shrink-0 px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition active:scale-95 disabled:opacity-40"
+                  style={{ backgroundColor: '#E8694A', fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  ADD
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 삭제 확인 모달 */}
       {confirmDialog && (
@@ -1464,7 +1587,16 @@ ${projectBlocks}
                     <div className="mt-1.5 space-y-0.5">
                       {/* todo list 라벨 + SCD + 완료탭 + ··· 버튼 */}
                       <div className="flex items-center gap-1.5">
-                        <span className="inline-block font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5">todo list</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setMemoInput(''); setMemoTarget({ id: project.id, name: project.name }) }}
+                          className="inline-flex items-center gap-0.5 font-mono text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-300 rounded px-1.5 py-0.5 hover:bg-orange-100 transition active:scale-95"
+                          title="메모장 열기"
+                        >
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          todo list
+                        </button>
                         {project.completionDate && (
                           <span
                             className="inline-block text-xs font-normal text-orange-500 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5"
