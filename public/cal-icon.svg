@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- 팀투두 앱 아이콘과 같은 도장 골격, 안쪽만 달력 글리프 -->
+  <rect width="1024" height="1024" fill="#fff7f5"/>
+  <rect x="148" y="220" width="728" height="584" rx="20" ry="20"
+        fill="#fff7f5" stroke="#E8694A" stroke-width="32"/>
+  <rect x="178" y="250" width="668" height="524" rx="8" ry="8"
+        fill="none" stroke="#E8694A" stroke-width="8" opacity="0.3"/>
+
+  <!-- 달력 상단 바 + 고리 -->
+  <rect x="252" y="330" width="520" height="92" rx="14" fill="#E8694A"/>
+  <rect x="352" y="292" width="40" height="80" rx="20" fill="#E8694A"/>
+  <rect x="632" y="292" width="40" height="80" rx="20" fill="#E8694A"/>
+
+  <!-- 7열 × 3행 날짜 칸 -->
+  <g fill="#E8694A" opacity="0.22">
+    <rect x="252" y="452" width="52" height="52" rx="10"/><rect x="330" y="452" width="52" height="52" rx="10"/><rect x="408" y="452" width="52" height="52" rx="10"/><rect x="486" y="452" width="52" height="52" rx="10"/><rect x="564" y="452" width="52" height="52" rx="10"/><rect x="642" y="452" width="52" height="52" rx="10"/><rect x="720" y="452" width="52" height="52" rx="10"/>
+    <rect x="252" y="532" width="52" height="52" rx="10"/><rect x="330" y="532" width="52" height="52" rx="10"/><rect x="408" y="532" width="52" height="52" rx="10"/>                                                    <rect x="564" y="532" width="52" height="52" rx="10"/><rect x="642" y="532" width="52" height="52" rx="10"/><rect x="720" y="532" width="52" height="52" rx="10"/>
+    <rect x="252" y="612" width="52" height="52" rx="10"/><rect x="330" y="612" width="52" height="52" rx="10"/><rect x="408" y="612" width="52" height="52" rx="10"/><rect x="486" y="612" width="52" height="52" rx="10"/><rect x="564" y="612" width="52" height="52" rx="10"/>
+  </g>
+  <!-- 강조된 하루 (준공일 느낌) -->
+  <rect x="486" y="532" width="52" height="52" rx="10" fill="#E8694A"/>
+</svg>
