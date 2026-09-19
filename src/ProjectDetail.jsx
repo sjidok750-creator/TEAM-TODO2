@@ -453,7 +453,7 @@ export default function ProjectDetail({ project, onBack }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addTodo()}
-              placeholder="할 일을 입력하세요..."
+              placeholder="할 일 (예: 9/25 현장측량)"
               className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
               style={{ fontSize: '16px' }}
               maxLength={200}
