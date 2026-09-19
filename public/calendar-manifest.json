@@ -1,0 +1,30 @@
+{
+  "name": "팀투두 달력",
+  "short_name": "팀투두 달력",
+  "description": "용역 일정과 준공일을 한눈에",
+  "start_url": "/TEAM-TODO2/calendar.html",
+  "scope": "/TEAM-TODO2/",
+  "display": "standalone",
+  "background_color": "#fff7f5",
+  "theme_color": "#E8694A",
+  "icons": [
+    {
+      "src": "/TEAM-TODO2/cal-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/TEAM-TODO2/cal-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/TEAM-TODO2/cal-icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

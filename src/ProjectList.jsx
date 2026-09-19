@@ -13,14 +13,7 @@ import {
   orderBy,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import MonthCalendarModal from './MonthCalendarModal'
 import { DATE_RE, parseDate, isPastDate } from './todoDates'
-import {
-  isConfigured as isGcalConfigured,
-  hasGranted as hasGcalGranted,
-  syncCalendar,
-  connectCalendar,
-} from './googleCalendar'
 
 // 전화번호 패턴 (010-1234-5678, 042-479-8382, 021234567 등)
 const PHONE_RE = /(0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4})/g
@@ -198,11 +191,6 @@ export default function ProjectList({ onSelectProject }) {
   const [openMenuId, setOpenMenuId] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
-  const [showMonthCal, setShowMonthCal] = useState(false)
-  const gcalConfigured = isGcalConfigured()
-  const [gcalConnected, setGcalConnected] = useState(() => gcalConfigured && hasGcalGranted())
-  const [gcalStatus, setGcalStatus] = useState('')
-  const [gcalNeedsReconnect, setGcalNeedsReconnect] = useState(false)
   const [noticeText, setNoticeText] = useState('')
   const [viewNotice, setViewNotice] = useState(null)
   const [editNoticeText, setEditNoticeText] = useState('')
@@ -270,40 +258,6 @@ export default function ProjectList({ onSelectProject }) {
       el.setSelectionRange(len, len)
     }, 50)
   }, [memoTarget])
-
-  // Google 캘린더 자동 동기화.
-  // 최초 1회 연결한 뒤에는 버튼을 누를 필요 없이 투두가 바뀔 때마다 알아서 반영된다.
-  // 단 토큰 수명이 약 1시간이고 iOS Safari 에서는 조용한 재발급이 막히는 경우가 있어,
-  // 실패하면 '자동 반영 중' 이라고 둘러대지 말고 재연결이 필요하다고 그대로 알린다.
-  const runGcalSync = useCallback(async ({ silent }) => {
-    setGcalStatus('동기화 중...')
-    try {
-      const r = await syncCalendar(todos, projects, { silent })
-      if (r.ok) {
-        const moved = r.created + r.updated + r.deleted
-        setGcalNeedsReconnect(false)
-        setGcalStatus(moved > 0 ? `${moved}건 반영됨` : '최신 상태')
-        return
-      }
-      if (r.reason === 'needs-reconnect' || r.reason === 'denied') {
-        setGcalNeedsReconnect(true)
-        setGcalStatus('연결이 만료되었습니다')
-      } else if (r.reason === 'api-error') {
-        setGcalStatus(r.message || '동기화 실패')
-      } else {
-        setGcalStatus('')
-      }
-    } catch (e) {
-      setGcalStatus(e?.message || '동기화 실패')
-    }
-  }, [todos, projects])
-
-  useEffect(() => {
-    if (loading) return
-    if (!gcalConfigured || !gcalConnected) return
-    const timer = setTimeout(() => { runGcalSync({ silent: true }) }, 1500) // 연속 변경을 한 번으로 묶는다
-    return () => clearTimeout(timer)
-  }, [loading, gcalConfigured, gcalConnected, runGcalSync])
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'projects'), (snap) => {
@@ -944,28 +898,6 @@ ${projectBlocks}
         </div>
       )}
 
-      {/* 전체 달력 모달 */}
-      {showMonthCal && (
-        <MonthCalendarModal
-          todos={todos}
-          projects={projects}
-          onClose={() => setShowMonthCal(false)}
-          gcalConfigured={gcalConfigured}
-          gcalConnected={gcalConnected}
-          gcalStatus={gcalStatus}
-          gcalNeedsReconnect={gcalNeedsReconnect}
-          onGcalSync={() => runGcalSync({ silent: false })}
-          onGcalConnect={async () => {
-            setGcalStatus('연결 중...')
-            const ok = await connectCalendar()
-            setGcalConnected(ok)
-            if (!ok) { setGcalStatus('연결이 취소되었습니다'); return }
-            setGcalNeedsReconnect(false)
-            await runGcalSync({ silent: false })
-          }}
-        />
-      )}
-
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 py-2.5 max-w-2xl mx-auto flex items-center justify-between">
@@ -1022,7 +954,7 @@ ${projectBlocks}
               )
             })()}
             <button
-              onClick={() => setShowMonthCal(true)}
+              onClick={() => { window.location.href = `${import.meta.env.BASE_URL}calendar.html` }}
               className="flex items-center justify-center w-8 h-8 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 transition active:scale-95"
               title="달력 보기"
             >
