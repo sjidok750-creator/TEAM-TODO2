@@ -51,7 +51,12 @@ function loadGis() {
     s.async = true
     s.defer = true
     s.onload = () => resolve(window.google)
-    s.onerror = () => reject(new Error('GIS 스크립트 로드 실패'))
+    s.onerror = () => {
+      // 캐시를 비워야 다음 시도에서 다시 받아볼 수 있다 (한 번 거부된 Promise 가 굳는 것 방지)
+      gisPromise = null
+      s.remove()
+      reject(new Error('GIS 스크립트 로드 실패'))
+    }
     document.head.appendChild(s)
   })
   return gisPromise
@@ -62,11 +67,33 @@ let accessToken = null
 let tokenExpiresAt = 0
 
 // silent=true 면 동의 창을 띄우지 않는다. 실패하면 null 을 돌려준다.
+//
+// 조용한 재발급(prompt:'')은 iOS Safari 의 추적 방지(ITP) 등으로 아무 응답 없이
+// 멈추는 경우가 있다. 그러면 Promise 가 영영 안 풀려서 동기화가 조용히 죽는다.
+// → 타임아웃을 둬서 반드시 null 로 끝나게 한다. 호출자는 그걸 보고 재연결을 안내한다.
+const SILENT_TIMEOUT_MS = 8000
+
 async function getToken({ silent }) {
   if (accessToken && Date.now() < tokenExpiresAt - 60_000) return accessToken
-  const google = await loadGis()
+
+  // 스크립트 로드 실패(오프라인·차단 등)도 '토큰을 못 받았다' 로 취급한다.
+  // 여기서 예외를 흘리면 호출자가 "자동 반영 중 · 로드 실패" 같은 모순된 문구를 띄우게 된다.
+  let google
+  try {
+    google = await loadGis()
+  } catch {
+    return null
+  }
+  if (!google?.accounts?.oauth2) return null
 
   return new Promise((resolve) => {
+    let done = false
+    const finish = (v) => {
+      if (done) return
+      done = true
+      resolve(v)
+    }
+
     if (!tokenClient) {
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
@@ -79,16 +106,19 @@ async function getToken({ silent }) {
         accessToken = resp.access_token
         tokenExpiresAt = Date.now() + (resp.expires_in ?? 3600) * 1000
         markGranted()
-        resolve(accessToken)
+        finish(accessToken)
       } else {
-        resolve(null)
+        finish(null)
       }
     }
-    tokenClient.error_callback = () => resolve(null)
+    tokenClient.error_callback = () => finish(null)
+
+    if (silent) setTimeout(() => finish(null), SILENT_TIMEOUT_MS)
+
     try {
       tokenClient.requestAccessToken({ prompt: silent ? '' : 'consent' })
     } catch {
-      resolve(null)
+      finish(null)
     }
   })
 }
@@ -221,7 +251,12 @@ export async function syncCalendar(todos, projects, { silent = true } = {}) {
   if (silent && !hasGranted()) return { ok: false, reason: 'not-connected' }
 
   const token = await getToken({ silent })
-  if (!token) return { ok: false, reason: silent ? 'not-connected' : 'denied' }
+  // 한 번 연결한 적이 있는데 조용한 재발급이 실패했다면 토큰이 만료된 것이다.
+  // 이 경우는 '연결 안 됨' 이 아니라 '재연결 필요' 로 구분해서 알려줘야 한다.
+  if (!token) {
+    if (!silent) return { ok: false, reason: 'denied' }
+    return { ok: false, reason: hasGranted() ? 'needs-reconnect' : 'not-connected' }
+  }
 
   const range = windowRange()
   const projectById = new Map(projects.map((p) => [p.id, p]))
@@ -245,7 +280,12 @@ export async function syncCalendar(todos, projects, { silent = true } = {}) {
     desired.set(eventIdFor(`${p.id}#due`, ymd), buildDueEvent(p, ymd))
   }
 
-  const actual = await listAppEvents(token, range)
+  let actual
+  try {
+    actual = await listAppEvents(token, range)
+  } catch (e) {
+    return { ok: false, reason: 'api-error', message: e?.message || '캘린더 조회 실패' }
+  }
 
   let created = 0, updated = 0, deleted = 0, failed = 0
   await pooled([...desired.entries()], async ([id, body]) => {

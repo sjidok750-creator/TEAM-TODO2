@@ -21,7 +21,9 @@ export default function MonthCalendarModal({
   gcalConfigured = false,
   gcalConnected = false,
   gcalStatus = '',
+  gcalNeedsReconnect = false,
   onGcalConnect,
+  onGcalSync,
 }) {
   const today = new Date()
   const [viewYear, setViewYear] = useState(today.getFullYear())
@@ -180,19 +182,35 @@ export default function MonthCalendarModal({
         {/* Google 캘린더 — 최초 1회만 연결하면 이후로는 자동 반영된다.
             VITE_GOOGLE_CLIENT_ID 가 없으면 이 영역 자체가 나타나지 않는다. */}
         {gcalConfigured && (
-          <div className="mt-2 pt-2 border-t border-orange-100">
-            {gcalConnected ? (
-              <p className="text-[10px] text-gray-400">
-                Google 캘린더 자동 반영 중{gcalStatus ? ` · ${gcalStatus}` : ''}
-              </p>
+          <div className="mt-2 pt-2 border-t border-orange-100 space-y-1.5">
+            {!gcalConnected || gcalNeedsReconnect ? (
+              <>
+                <button
+                  onClick={onGcalConnect}
+                  className="w-full py-2 rounded-lg border text-[11px] transition active:scale-95 hover:bg-orange-50"
+                  style={{ ...MONO, borderColor: '#E8694A' }}
+                >
+                  {gcalNeedsReconnect ? 'Google 캘린더 다시 연결' : 'Google 캘린더 연결 (최초 1회)'}
+                </button>
+                {gcalNeedsReconnect && (
+                  <p className="text-[10px] text-gray-400">
+                    연결이 만료되면 자동 반영이 멈춥니다. 다시 연결하면 그대로 이어집니다.
+                  </p>
+                )}
+              </>
             ) : (
-              <button
-                onClick={onGcalConnect}
-                className="w-full py-2 rounded-lg border text-[11px] transition active:scale-95 hover:bg-orange-50"
-                style={{ ...MONO, borderColor: '#E8694A' }}
-              >
-                Google 캘린더 연결 (최초 1회)
-              </button>
+              <div className="flex items-center gap-2">
+                <p className="flex-1 text-[10px] text-gray-400 truncate">
+                  Google 캘린더 자동 반영{gcalStatus ? ` · ${gcalStatus}` : ''}
+                </p>
+                <button
+                  onClick={onGcalSync}
+                  className="shrink-0 px-2 py-1 rounded border text-[10px] transition active:scale-95 hover:bg-orange-50"
+                  style={{ ...MONO, borderColor: '#E8694A' }}
+                >
+                  지금 동기화
+                </button>
+              </div>
             )}
           </div>
         )}

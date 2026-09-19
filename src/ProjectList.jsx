@@ -202,6 +202,7 @@ export default function ProjectList({ onSelectProject }) {
   const gcalConfigured = isGcalConfigured()
   const [gcalConnected, setGcalConnected] = useState(() => gcalConfigured && hasGcalGranted())
   const [gcalStatus, setGcalStatus] = useState('')
+  const [gcalNeedsReconnect, setGcalNeedsReconnect] = useState(false)
   const [noticeText, setNoticeText] = useState('')
   const [viewNotice, setViewNotice] = useState(null)
   const [editNoticeText, setEditNoticeText] = useState('')
@@ -272,21 +273,37 @@ export default function ProjectList({ onSelectProject }) {
 
   // Google 캘린더 자동 동기화.
   // 최초 1회 연결한 뒤에는 버튼을 누를 필요 없이 투두가 바뀔 때마다 알아서 반영된다.
-  // 연결 전이거나 VITE_GOOGLE_CLIENT_ID 가 없으면 아무 일도 하지 않는다.
+  // 단 토큰 수명이 약 1시간이고 iOS Safari 에서는 조용한 재발급이 막히는 경우가 있어,
+  // 실패하면 '자동 반영 중' 이라고 둘러대지 말고 재연결이 필요하다고 그대로 알린다.
+  const runGcalSync = useCallback(async ({ silent }) => {
+    setGcalStatus('동기화 중...')
+    try {
+      const r = await syncCalendar(todos, projects, { silent })
+      if (r.ok) {
+        const moved = r.created + r.updated + r.deleted
+        setGcalNeedsReconnect(false)
+        setGcalStatus(moved > 0 ? `${moved}건 반영됨` : '최신 상태')
+        return
+      }
+      if (r.reason === 'needs-reconnect' || r.reason === 'denied') {
+        setGcalNeedsReconnect(true)
+        setGcalStatus('연결이 만료되었습니다')
+      } else if (r.reason === 'api-error') {
+        setGcalStatus(r.message || '동기화 실패')
+      } else {
+        setGcalStatus('')
+      }
+    } catch (e) {
+      setGcalStatus(e?.message || '동기화 실패')
+    }
+  }, [todos, projects])
+
   useEffect(() => {
     if (loading) return
     if (!gcalConfigured || !gcalConnected) return
-    const timer = setTimeout(() => {
-      syncCalendar(todos, projects, { silent: true })
-        .then((r) => {
-          if (!r.ok) return
-          const moved = r.created + r.updated + r.deleted
-          if (moved > 0) setGcalStatus(`캘린더 동기화 ${moved}건`)
-        })
-        .catch(() => {})
-    }, 1500) // 연속 변경(드래그 정렬 등) 을 한 번으로 묶는다
+    const timer = setTimeout(() => { runGcalSync({ silent: true }) }, 1500) // 연속 변경을 한 번으로 묶는다
     return () => clearTimeout(timer)
-  }, [todos, projects, loading, gcalConnected])
+  }, [loading, gcalConfigured, gcalConnected, runGcalSync])
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'projects'), (snap) => {
@@ -936,11 +953,15 @@ ${projectBlocks}
           gcalConfigured={gcalConfigured}
           gcalConnected={gcalConnected}
           gcalStatus={gcalStatus}
+          gcalNeedsReconnect={gcalNeedsReconnect}
+          onGcalSync={() => runGcalSync({ silent: false })}
           onGcalConnect={async () => {
             setGcalStatus('연결 중...')
             const ok = await connectCalendar()
             setGcalConnected(ok)
-            setGcalStatus(ok ? '연결됨 — 이제 자동으로 반영됩니다' : '연결이 취소되었습니다')
+            if (!ok) { setGcalStatus('연결이 취소되었습니다'); return }
+            setGcalNeedsReconnect(false)
+            await runGcalSync({ silent: false })
           }}
         />
       )}
