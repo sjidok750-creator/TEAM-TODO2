@@ -10,7 +10,13 @@
 //    두 기기에서 동시에 올려도 두 번째는 409 를 받고 PATCH 로 흘러간다. 중복이 생길 수 없다
 //  - Firestore 에는 아무것도 쓰지 않는다 (동기화 상태를 앱 데이터에 남기지 않음)
 
-import { extractTodoDates, summarizeTodoText, nextLocalISODate, toLocalISODate } from './todoDates'
+import {
+  extractTodoDates,
+  summarizeTodoText,
+  nextLocalISODate,
+  toLocalISODate,
+  parseCompletionDate,
+} from './todoDates'
 
 const CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim()
 const SCOPE = 'https://www.googleapis.com/auth/calendar.events'
@@ -103,17 +109,37 @@ function eventIdFor(todoId, ymd) {
   return out
 }
 
-function buildEvent(todo, ymd, projectName) {
+// 종일 이벤트 공통 뼈대. end.date 는 배타적이므로 항상 +1일.
+function allDay(ymd, summary, description, tags) {
+  return {
+    summary,
+    description,
+    start: { date: ymd },
+    end: { date: nextLocalISODate(ymd) },
+    transparency: 'transparent',
+    extendedProperties: { private: { app: APP_TAG, ymd, ...tags } },
+  }
+}
+
+function buildTodoEvent(todo, ymd, projectName) {
   const summary = summarizeTodoText(todo.text, 40)
   const lines = [projectName || '', todo.author ? `작성: ${todo.author}` : '', todo.text]
-  return {
-    summary: todo.done ? `✓ ${summary}` : summary,
-    description: lines.filter(Boolean).join('\n'),
-    start: { date: ymd },
-    end: { date: nextLocalISODate(ymd) }, // end.date 는 배타적 — 하루 일정이면 +1일
-    transparency: 'transparent',
-    extendedProperties: { private: { app: APP_TAG, todoId: todo.id, ymd } },
-  }
+  return allDay(
+    ymd,
+    todo.done ? `✓ ${summary}` : summary,
+    lines.filter(Boolean).join('\n'),
+    { todoId: todo.id },
+  )
+}
+
+// 용역 준공일(SCD)
+function buildDueEvent(project, ymd) {
+  return allDay(
+    ymd,
+    `[준공] ${project.name}`,
+    [`용역 준공일 (SCD ${project.completionDate})`, project.name].join('\n'),
+    { projectId: project.id, kind: 'due' },
+  )
 }
 
 function windowRange() {
@@ -206,8 +232,17 @@ export async function syncCalendar(todos, projects, { silent = true } = {}) {
     const project = projectById.get(t.projectId)
     for (const d of extractTodoDates(t, project)) {
       if (d.ymd < range.fromYmd || d.ymd > range.toYmd) continue
-      desired.set(eventIdFor(t.id, d.ymd), buildEvent(t, d.ymd, project?.name))
+      desired.set(eventIdFor(t.id, d.ymd), buildTodoEvent(t, d.ymd, project?.name))
     }
+  }
+  // 용역 준공일.
+  // ID 재료에 '#due' 를 섞어 투두 이벤트와 절대 겹치지 않게 한다.
+  // (투두 ID 규칙은 그대로 둬야 이미 올라간 이벤트가 고아가 되지 않는다)
+  for (const p of projects) {
+    const ymd = parseCompletionDate(p.completionDate)
+    if (!ymd) continue
+    if (ymd < range.fromYmd || ymd > range.toYmd) continue
+    desired.set(eventIdFor(`${p.id}#due`, ymd), buildDueEvent(p, ymd))
   }
 
   const actual = await listAppEvents(token, range)

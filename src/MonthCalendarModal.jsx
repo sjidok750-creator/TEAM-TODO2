@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { isHoliday } from './holidays'
-import { extractTodoDates, summarizeTodoText, toLocalISODate } from './todoDates'
+import { extractTodoDates, summarizeTodoText, toLocalISODate, parseCompletionDate } from './todoDates'
 
 // 달력 라벨용 카테고리 색. ProjectList 가 이 모듈을 import 하므로 역참조는 순환이 되어 불가.
 const CAT_COLOR = {
@@ -33,17 +33,29 @@ export default function MonthCalendarModal({
     [projects],
   )
 
-  // 'YYYY-MM-DD' → 투두 배열. 한 투두에 날짜가 여러 개면 각 날짜에 모두 들어간다.
+  // 'YYYY-MM-DD' → 항목 배열.
+  // 항목은 투두({kind:'todo'}) 또는 용역 준공일({kind:'due'}) 이다.
+  // 준공일은 그날의 대표 일정이므로 항상 맨 앞에 둔다 (칸에 보이는 라벨 한 줄을 차지).
   const byDate = useMemo(() => {
     const m = new Map()
+    const push = (ymd, item) => {
+      if (!m.has(ymd)) m.set(ymd, [])
+      m.get(ymd).push(item)
+    }
+    for (const p of projects) {
+      const ymd = parseCompletionDate(p.completionDate)
+      if (ymd) push(ymd, { kind: 'due', id: `due-${p.id}`, project: p })
+    }
     for (const t of todos) {
       for (const d of extractTodoDates(t, projectById.get(t.projectId))) {
-        if (!m.has(d.ymd)) m.set(d.ymd, [])
-        m.get(d.ymd).push(t)
+        push(d.ymd, { kind: 'todo', id: t.id, todo: t })
       }
     }
+    for (const list of m.values()) {
+      list.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'due' ? -1 : 1))
+    }
     return m
-  }, [todos, projectById])
+  }, [todos, projects, projectById])
 
   const firstDay = new Date(viewYear, viewMonth, 1)
   const lastDay = new Date(viewYear, viewMonth + 1, 0)
@@ -100,9 +112,22 @@ export default function MonthCalendarModal({
           {cells.map((day, i) => {
             if (!day) return <div key={i} />
             const ymd = toLocalISODate(viewYear, viewMonth + 1, day)
-            const dayTodos = byDate.get(ymd) ?? []
-            const first = dayTodos[0]
-            const extra = dayTodos.length - 1
+            const dayItems = byDate.get(ymd) ?? []
+            const first = dayItems[0]
+            const extra = dayItems.length - 1
+            const isDue = first?.kind === 'due'
+            const label = !first
+              ? ''
+              : isDue
+                ? `준공 ${first.project.name}`
+                : summarizeTodoText(first.todo.text, 40)
+            const labelClass = !first
+              ? ''
+              : isDue
+                ? 'font-bold'
+                : first.todo.done
+                  ? 'text-gray-300 line-through'
+                  : (CAT_COLOR[first.todo.category] || CAT_COLOR['기타'])
             const dow = new Date(viewYear, viewMonth, day).getDay()
             const isToday =
               viewYear === today.getFullYear() && viewMonth === today.getMonth() && day === today.getDate()
@@ -133,11 +158,10 @@ export default function MonthCalendarModal({
                 </span>
                 {/* 라벨 슬롯은 비어 있어도 자리를 지킨다 — 행 높이를 고르게 유지 */}
                 <span
-                  className={`w-full px-0.5 truncate text-center text-[9px] leading-[11px] h-[11px] ${
-                    !first ? '' : first.done ? 'text-gray-300 line-through' : (CAT_COLOR[first.category] || CAT_COLOR['기타'])
-                  }`}
+                  className={`w-full px-0.5 truncate text-center text-[9px] leading-[11px] h-[11px] ${labelClass}`}
+                  style={isDue ? { color: '#E8694A' } : undefined}
                 >
-                  {first ? summarizeTodoText(first.text, 40) : ' '}
+                  {label || ' '}
                 </span>
               </button>
             )
@@ -180,22 +204,38 @@ export default function MonthCalendarModal({
               <p className="text-xs text-gray-400">등록된 일정이 없습니다</p>
             ) : (
               <div className="space-y-1.5">
-                {selectedTodos.map((t) => (
-                  <div key={t.id} className="flex items-start gap-1.5">
-                    <span className={`text-[11px] font-bold shrink-0 ${CAT_COLOR[t.category] || CAT_COLOR['기타']}`}>
-                      ({t.category || '기타'})
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs break-words leading-snug ${t.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                        {t.text}
-                      </p>
-                      <p className="text-[10px] text-gray-400 mt-0.5 truncate">
-                        {projectById.get(t.projectId)?.name || '(용역 없음)'}
-                        {t.author ? ` · ${t.author}` : ''}
-                      </p>
+                {selectedTodos.map((item) =>
+                  item.kind === 'due' ? (
+                    <div key={item.id} className="flex items-start gap-1.5">
+                      <span className="text-[11px] font-bold shrink-0" style={{ color: '#E8694A' }}>
+                        (준공)
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs break-words leading-snug font-semibold text-gray-700">
+                          {item.project.name}
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          SCD {item.project.completionDate}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ) : (
+                    <div key={item.id} className="flex items-start gap-1.5">
+                      <span className={`text-[11px] font-bold shrink-0 ${CAT_COLOR[item.todo.category] || CAT_COLOR['기타']}`}>
+                        ({item.todo.category || '기타'})
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs break-words leading-snug ${item.todo.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                          {item.todo.text}
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5 truncate">
+                          {projectById.get(item.todo.projectId)?.name || '(용역 없음)'}
+                          {item.todo.author ? ` · ${item.todo.author}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                  ),
+                )}
               </div>
             )}
           </div>
