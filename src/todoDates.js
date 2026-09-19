@@ -99,12 +99,30 @@ export function extractTodoDates(todo, project) {
   return out
 }
 
+// 용역 준공일(SCD) 파싱. 입력 형식은 YY/MM/DD (예: "26/10/14") 를 기본으로 하되
+// 구분자 . - 와 네자리 연도도 받아준다. → 'YYYY-MM-DD' 또는 null
+export function parseCompletionDate(raw) {
+  if (!raw) return null
+  const m = String(raw).trim().match(/^(\d{2}|\d{4})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{1,2})$/)
+  if (!m) return null
+  const year = m[1].length === 2 ? 2000 + parseInt(m[1], 10) : parseInt(m[1], 10)
+  const month = parseInt(m[2], 10)
+  const day = parseInt(m[3], 10)
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null
+  if (!isRealDate(year, month, day)) return null
+  return toLocalISODate(year, month, day)
+}
+
 // 달력/캘린더에 올릴 축약 요약. 날짜 토큰을 빼야 "9/25 현장측량" 이 "현장측량" 으로 읽힌다.
 // max 를 넘기면 말줄임. 달력 칸에서는 CSS truncate 를 쓰므로 max 를 크게 두고 호출한다.
 export function summarizeTodoText(text, max = 20) {
   const bare = (text || '')
     .replace(CAL_DATE_RE, ' ')
-    .replace(/[\s,·]+/g, ' ')
+    // 날짜를 빼고 남은 빈 괄호를 치운다.
+    // "설계변경(~9/11)" 는 날짜 제거 후 "설계변경( )" 이 되는데,
+    // 달력 칸에는 네 글자밖에 안 들어가므로 괄호가 내용을 밀어낸다.
+    .replace(/[(\[（【]\s*[~-]?\s*[)\]）】]/g, ' ')
+    .replace(/[\s,·~]+/g, ' ')
     .trim()
   if (!bare) return '(내용 없음)'
   const chars = [...bare] // 이모지 서로게이트 페어 안전
