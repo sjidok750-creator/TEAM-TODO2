@@ -14,7 +14,15 @@ const CAT_COLOR = {
 const MONTH_NAMES = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
 const MONO = { fontFamily: "'JetBrains Mono', monospace", color: '#E8694A' }
 
-export default function MonthCalendarModal({ todos = [], projects = [], onClose }) {
+export default function MonthCalendarModal({
+  todos = [],
+  projects = [],
+  onClose,
+  gcalConfigured = false,
+  gcalConnected = false,
+  gcalStatus = '',
+  onGcalConnect,
+}) {
   const today = new Date()
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
@@ -144,6 +152,26 @@ export default function MonthCalendarModal({ todos = [], projects = [], onClose 
             <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: '#E8694A' }} /> TODAY
           </span>
         </div>
+
+        {/* Google 캘린더 — 최초 1회만 연결하면 이후로는 자동 반영된다.
+            VITE_GOOGLE_CLIENT_ID 가 없으면 이 영역 자체가 나타나지 않는다. */}
+        {gcalConfigured && (
+          <div className="mt-2 pt-2 border-t border-orange-100">
+            {gcalConnected ? (
+              <p className="text-[10px] text-gray-400">
+                Google 캘린더 자동 반영 중{gcalStatus ? ` · ${gcalStatus}` : ''}
+              </p>
+            ) : (
+              <button
+                onClick={onGcalConnect}
+                className="w-full py-2 rounded-lg border text-[11px] transition active:scale-95 hover:bg-orange-50"
+                style={{ ...MONO, borderColor: '#E8694A' }}
+              >
+                Google 캘린더 연결 (최초 1회)
+              </button>
+            )}
+          </div>
+        )}
 
         {selectedYmd && (
           <div className="mt-3 pt-3 border-t border-orange-100">

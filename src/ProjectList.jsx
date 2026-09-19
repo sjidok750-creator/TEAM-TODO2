@@ -15,6 +15,12 @@ import {
 import { db } from './firebase'
 import MonthCalendarModal from './MonthCalendarModal'
 import { DATE_RE, parseDate, isPastDate } from './todoDates'
+import {
+  isConfigured as isGcalConfigured,
+  hasGranted as hasGcalGranted,
+  syncCalendar,
+  connectCalendar,
+} from './googleCalendar'
 
 // 전화번호 패턴 (010-1234-5678, 042-479-8382, 021234567 등)
 const PHONE_RE = /(0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4})/g
@@ -193,6 +199,9 @@ export default function ProjectList({ onSelectProject }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [showMonthCal, setShowMonthCal] = useState(false)
+  const gcalConfigured = isGcalConfigured()
+  const [gcalConnected, setGcalConnected] = useState(() => gcalConfigured && hasGcalGranted())
+  const [gcalStatus, setGcalStatus] = useState('')
   const [noticeText, setNoticeText] = useState('')
   const [viewNotice, setViewNotice] = useState(null)
   const [editNoticeText, setEditNoticeText] = useState('')
@@ -260,6 +269,24 @@ export default function ProjectList({ onSelectProject }) {
       el.setSelectionRange(len, len)
     }, 50)
   }, [memoTarget])
+
+  // Google 캘린더 자동 동기화.
+  // 최초 1회 연결한 뒤에는 버튼을 누를 필요 없이 투두가 바뀔 때마다 알아서 반영된다.
+  // 연결 전이거나 VITE_GOOGLE_CLIENT_ID 가 없으면 아무 일도 하지 않는다.
+  useEffect(() => {
+    if (loading) return
+    if (!gcalConfigured || !gcalConnected) return
+    const timer = setTimeout(() => {
+      syncCalendar(todos, projects, { silent: true })
+        .then((r) => {
+          if (!r.ok) return
+          const moved = r.created + r.updated + r.deleted
+          if (moved > 0) setGcalStatus(`캘린더 동기화 ${moved}건`)
+        })
+        .catch(() => {})
+    }, 1500) // 연속 변경(드래그 정렬 등) 을 한 번으로 묶는다
+    return () => clearTimeout(timer)
+  }, [todos, projects, loading, gcalConnected])
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'projects'), (snap) => {
@@ -906,6 +933,15 @@ ${projectBlocks}
           todos={todos}
           projects={projects}
           onClose={() => setShowMonthCal(false)}
+          gcalConfigured={gcalConfigured}
+          gcalConnected={gcalConnected}
+          gcalStatus={gcalStatus}
+          onGcalConnect={async () => {
+            setGcalStatus('연결 중...')
+            const ok = await connectCalendar()
+            setGcalConnected(ok)
+            setGcalStatus(ok ? '연결됨 — 이제 자동으로 반영됩니다' : '연결이 취소되었습니다')
+          }}
         />
       )}
 
